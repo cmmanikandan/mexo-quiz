@@ -98,8 +98,9 @@ export interface LessonSlide {
   content: string; // Markdown / HTML text
   mediaUrl?: string;
   mediaType?: 'image' | 'video' | 'audio';
-  slideType: 'content' | 'question' | 'poll' | 'code' | 'embed';
-  embeddedQuestion?: Question;
+  slideType?: 'title' | 'content' | 'question' | 'poll' | 'code' | 'embed' | 'media';
+  embeddedQuestion?: { title: string; options: QuestionOption[] } | Question;
+  speakerNotes?: string;
 }
 
 export interface Flashcard {
