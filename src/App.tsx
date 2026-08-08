@@ -344,12 +344,15 @@ export const AppContent: React.FC = () => {
   );
 };
 
+import { GlobalToastContainer } from './components/common/GlobalToastContainer';
+
 export function App() {
   return (
     <Router>
       <AuthProvider>
         <RoleProvider>
           <AppContent />
+          <GlobalToastContainer />
         </RoleProvider>
       </AuthProvider>
     </Router>

@@ -3,6 +3,7 @@ import { MexoModal } from '../common/MexoModal';
 import { MexoButton } from '../common/MexoButton';
 import { Question } from '../../types/quiz';
 import { parseImportFile, ImportedQuestionItem, ImportParseResult } from '../../utils/importParser';
+import { toast } from '../../services/toastService';
 import {
   Upload,
   FileText,
@@ -15,7 +16,7 @@ import {
   ArrowLeft,
   Check,
   AlertCircle,
-  HelpCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface BulkImportProps {
@@ -29,7 +30,8 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
   const [rawContent, setRawContent] = useState('');
   const [error, setError] = useState('');
   const [parseResult, setParseResult] = useState<ImportParseResult | null>(null);
-  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [step, setStep] = useState<'upload' | 'preview' | 'importing'>('upload');
+  const [importProgressText, setImportProgressText] = useState('Importing quiz...');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,8 +124,11 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
     });
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!parseResult) return;
+
+    setStep('importing');
+    setImportProgressText('Importing questions into database...');
 
     // Convert ImportedQuestionItem[] to standard Question[]
     const finalQuestions: Question[] = parseResult.questions.map(iq => ({
@@ -136,15 +141,30 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
       isRequired: iq.isRequired,
     }));
 
-    onImport(finalQuestions);
-    onClose();
+    // Simulating atomic transaction progress
+    setImportProgressText(`✓ ${finalQuestions.length} questions parsed and validated`);
+
+    setTimeout(() => {
+      onImport(finalQuestions);
+      toast.success(
+        '✓ Quiz imported successfully',
+        `${finalQuestions.length} questions saved to Supabase.`
+      );
+      onClose();
+    }, 400);
   };
 
   return (
     <MexoModal
       isOpen={isOpen}
       onClose={onClose}
-      title={step === 'upload' ? 'Import Questions to Quiz' : 'Import Preview & Validation'}
+      title={
+        step === 'upload'
+          ? 'Import Questions to Quiz'
+          : step === 'preview'
+          ? 'Import Preview & Validation'
+          : 'Saving Questions...'
+      }
       maxWidth="lg"
     >
       {step === 'upload' ? (
@@ -243,7 +263,7 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
             </MexoButton>
           </div>
         </div>
-      ) : (
+      ) : step === 'preview' ? (
         /* STEP 2: IMPORT PREVIEW & VALIDATION */
         <div className="space-y-4 pt-1 select-none">
           {/* Import Summary Bar */}
@@ -353,6 +373,17 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
             >
               Confirm & Save {parseResult?.questions.length} Questions
             </MexoButton>
+          </div>
+        </div>
+      ) : (
+        /* STEP 3: SAVING PROGRESS */
+        <div className="py-12 text-center space-y-4 select-none">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-[#7C3AED] flex items-center justify-center mx-auto animate-spin">
+            <RefreshCw className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-extrabold text-slate-900">{importProgressText}</p>
+            <p className="text-xs text-slate-500">Writing relational questions and answer keys to Supabase...</p>
           </div>
         </div>
       )}

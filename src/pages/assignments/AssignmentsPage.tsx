@@ -26,6 +26,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { MexoButton } from '../../components/common/MexoButton';
 import { MexoModal } from '../../components/common/MexoModal';
 import { supabase } from '../../lib/supabase';
+import { toast } from '../../services/toastService';
 
 export const AssignmentsPage: React.FC = () => {
   useDocumentTitle('Assignments — MEXO Quiz');
@@ -104,9 +105,13 @@ export const AssignmentsPage: React.FC = () => {
     setShowAssignModal(true);
   };
 
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+
   const handleSaveAssignment = async () => {
     const targetQuiz = quizzes.find(q => q.id === selectedQuizId) || quizzes[0];
     if (!targetQuiz) return;
+
+    setIsSavingAssignment(true);
 
     const newAsg: HomeworkAssignment = {
       id: `asg-${Date.now()}`,
@@ -124,11 +129,21 @@ export const AssignmentsPage: React.FC = () => {
     };
 
     try {
-      await supabase.from('homework_assignments').insert(newAsg);
-    } catch (e) {}
-
-    setAssignments(prev => [newAsg, ...prev]);
-    setShowAssignModal(false);
+      const { error } = await supabase.from('homework_assignments').insert(newAsg);
+      if (error) {
+        toast.error('✕ Unable to save assignment', 'Please check your connection and try again.');
+        setIsSavingAssignment(false);
+        return;
+      }
+      
+      setAssignments(prev => [newAsg, ...prev]);
+      toast.success('✓ Quiz assigned', 'Assignment has been saved to Supabase.');
+      setShowAssignModal(false);
+    } catch (e) {
+      toast.error('✕ Unable to save assignment', 'Network error occurred.');
+    } finally {
+      setIsSavingAssignment(false);
+    }
   };
 
   const filtered = assignments.filter(asg => {
