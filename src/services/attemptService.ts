@@ -1,4 +1,4 @@
-import { Quiz, QuizAttempt, Question } from '../types/quiz';
+import { Quiz, QuizAttempt, Question, AttemptStatus } from '../types/quiz';
 import { supabase } from '../lib/supabase';
 
 const ATTEMPTS_KEY = 'mexo_quiz_attempts_v1';
@@ -7,17 +7,253 @@ export const attemptService = {
   getAllAttempts(): QuizAttempt[] {
     try {
       const stored = localStorage.getItem(ATTEMPTS_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {}
     return [];
   },
 
+  async fetchAttemptsFromSupabase(userId?: string, quizId?: string): Promise<QuizAttempt[]> {
+    try {
+      let query = supabase.from('quiz_attempts').select('*').order('completed_at', { ascending: false });
+      if (userId) query = query.eq('user_id', userId);
+      if (quizId) query = query.eq('quiz_id', quizId);
+
+      const { data, error } = await query;
+      if (data && !error) {
+        const dbAttempts: QuizAttempt[] = data.map((item: any) => ({
+          id: item.id,
+          quiz_id: item.quiz_id,
+          quiz_title: item.quiz_title,
+          user_id: item.user_id,
+          student_id: item.user_id,
+          user_name: item.user_name || 'Student',
+          user_avatar: item.user_avatar,
+          score: item.score || 0,
+          max_score: item.max_score || 0,
+          total_points: item.max_score || 0,
+          percentage: item.percentage || 0,
+          correct_count: item.correct_count || 0,
+          incorrect_count: item.incorrect_count || 0,
+          skipped_count: item.skipped_count || 0,
+          xp_earned: item.xp_earned || 0,
+          time_spent_seconds: item.time_spent_seconds || item.time_taken_seconds || 0,
+          time_taken_seconds: item.time_spent_seconds || item.time_taken_seconds || 0,
+          answers: item.answers || {},
+          is_passed: !!item.is_passed,
+          certificate_url: item.certificate_url,
+          status: item.status || 'submitted',
+          started_at: item.started_at,
+          submitted_at: item.submitted_at || item.completed_at,
+          completed_at: item.completed_at || new Date().toISOString(),
+          assignment_id: item.assignment_id,
+        }));
+
+        // Merge with local attempts
+        const localAttempts = this.getAllAttempts();
+        const mergedMap = new Map<string, QuizAttempt>();
+        localAttempts.forEach(a => mergedMap.set(a.id, a));
+        dbAttempts.forEach(a => mergedMap.set(a.id, a));
+
+        const mergedList = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.completed_at || b.submitted_at || 0).getTime() - new Date(a.completed_at || a.submitted_at || 0).getTime()
+        );
+
+        try {
+          localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(mergedList));
+        } catch (e) {}
+
+        return mergedList;
+      }
+    } catch (e) {}
+    return this.getAllAttempts();
+  },
+
   getUserAttempts(userId: string): QuizAttempt[] {
-    return this.getAllAttempts().filter(a => a.user_id === userId);
+    return this.getAllAttempts().filter(a => a.user_id === userId || a.student_id === userId);
   },
 
   getQuizAttempts(quizId: string): QuizAttempt[] {
     return this.getAllAttempts().filter(a => a.quiz_id === quizId);
+  },
+
+  getAttemptById(attemptId: string): QuizAttempt | null {
+    const list = this.getAllAttempts();
+    return list.find(a => a.id === attemptId) || null;
+  },
+
+  /**
+   * Safe attempt limit resolver.
+   * Default is ALWAYS 1 Attempt Only if not explicitly configured.
+   * 0 = Unlimited Attempts
+   */
+  getQuizAttemptsLimit(quiz: Quiz | null | undefined): number {
+    if (!quiz || !quiz.settings) return 1;
+    const limit = quiz.settings.attemptsLimit;
+    if (limit === undefined || limit === null) return 1;
+    if (limit === 0) return 0; // Explicitly unlimited
+    return limit; // 1, 2, 3, 5, etc.
+  },
+
+  /**
+   * Centralized attempt-state & permission validator.
+   * Checks Supabase & local attempts for this student & quiz.
+   */
+  canStartQuizAttempt(
+    quiz: Quiz,
+    userId: string
+  ): {
+    canStart: boolean;
+    reason?: 'attempt_limit_reached' | 'active_in_progress' | 'quiz_closed';
+    completedCount: number;
+    allowedAttempts: number;
+    existingAttempt?: QuizAttempt;
+    activeAttempt?: QuizAttempt;
+  } {
+    const allUserAttempts = this.getUserAttempts(userId).filter(a => a.quiz_id === quiz.id);
+
+    // Submitted / Completed attempts
+    const submittedAttempts = allUserAttempts.filter(
+      a => a.status === 'submitted' || a.status === 'auto_submitted' || a.status === 'expired' || (!a.status && a.completed_at)
+    );
+
+    // In-progress active attempt
+    const inProgressAttempt = allUserAttempts.find(a => a.status === 'in_progress');
+
+    const allowedAttempts = this.getQuizAttemptsLimit(quiz);
+    const completedCount = submittedAttempts.length;
+
+    // Check if limit is reached (0 means unlimited)
+    if (allowedAttempts !== 0 && completedCount >= allowedAttempts) {
+      return {
+        canStart: false,
+        reason: 'attempt_limit_reached',
+        completedCount,
+        allowedAttempts,
+        existingAttempt: submittedAttempts[0],
+      };
+    }
+
+    if (inProgressAttempt) {
+      return {
+        canStart: true,
+        reason: 'active_in_progress',
+        completedCount,
+        allowedAttempts,
+        activeAttempt: inProgressAttempt,
+      };
+    }
+
+    return {
+      canStart: true,
+      completedCount,
+      allowedAttempts,
+    };
+  },
+
+  /**
+   * Atomic attempt starter.
+   * Prevents duplicate attempt creation on rapid double-clicking.
+   */
+  async startQuizAttempt(
+    quiz: Quiz,
+    userId: string,
+    userName: string,
+    userAvatar?: string,
+    assignmentId?: string
+  ): Promise<{
+    success: boolean;
+    attempt?: QuizAttempt;
+    isResume?: boolean;
+    error?: string;
+  }> {
+    const check = this.canStartQuizAttempt(quiz, userId);
+
+    if (!check.canStart) {
+      return {
+        success: false,
+        error: 'attempt_limit_reached',
+        attempt: check.existingAttempt,
+      };
+    }
+
+    // If an in-progress attempt already exists, resume it atomically
+    if (check.activeAttempt) {
+      return {
+        success: true,
+        attempt: check.activeAttempt,
+        isResume: true,
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const totalPoints = quiz.questions?.reduce((acc, q) => acc + (q.points || 1), 0) || quiz.questions.length * 10;
+
+    const newAttempt: QuizAttempt = {
+      id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      quiz_id: quiz.id,
+      quiz_title: quiz.settings?.title || 'Untitled Quiz',
+      user_id: userId,
+      student_id: userId,
+      user_name: userName,
+      user_avatar: userAvatar,
+      assignment_id: assignmentId,
+      status: 'in_progress',
+      score: 0,
+      max_score: totalPoints,
+      total_points: totalPoints,
+      percentage: 0,
+      correct_count: 0,
+      incorrect_count: 0,
+      skipped_count: 0,
+      xp_earned: 0,
+      time_spent_seconds: 0,
+      time_taken_seconds: 0,
+      answers: {},
+      is_passed: false,
+      start_time: nowIso,
+      started_at: nowIso,
+      completed_at: '',
+      attempt_number: check.completedCount + 1,
+      integrity_score: 100,
+      security_status: 'clean',
+    };
+
+    const list = this.getAllAttempts();
+    list.unshift(newAttempt);
+    try {
+      localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(list));
+      localStorage.setItem(`test_started_at_${quiz.id}`, Date.now().toString());
+    } catch (e) {}
+
+    // Persist to Supabase
+    (async () => {
+      try {
+        await supabase.from('quiz_attempts').upsert({
+          id: newAttempt.id,
+          quiz_id: newAttempt.quiz_id,
+          quiz_title: newAttempt.quiz_title,
+          user_id: newAttempt.user_id,
+          user_name: newAttempt.user_name,
+          user_avatar: newAttempt.user_avatar,
+          score: 0,
+          max_score: newAttempt.max_score,
+          percentage: 0,
+          status: 'in_progress',
+          started_at: newAttempt.started_at,
+          completed_at: new Date().toISOString(),
+          answers: {},
+        });
+      } catch (e) {}
+    })();
+
+    return {
+      success: true,
+      attempt: newAttempt,
+      isResume: false,
+    };
   },
 
   gradeQuestion(q: Question, userAnswer: any): { isCorrect: boolean; pointsEarned: number } {
@@ -31,13 +267,13 @@ export const attemptService = {
       case 'multiple_choice':
       case 'true_false':
       case 'dropdown': {
-        const correctOpt = q.options.find(o => o.isCorrect);
+        const correctOpt = q.options?.find(o => o.isCorrect);
         isCorrect = correctOpt ? correctOpt.id === userAnswer || correctOpt.text === userAnswer : false;
         break;
       }
 
       case 'multiple_select': {
-        const correctIds = q.options.filter(o => o.isCorrect).map(o => o.id);
+        const correctIds = (q.options || []).filter(o => o.isCorrect).map(o => o.id);
         if (Array.isArray(userAnswer)) {
           isCorrect =
             correctIds.length === userAnswer.length &&
@@ -48,20 +284,18 @@ export const attemptService = {
 
       case 'fill_blank':
       case 'short_answer': {
-        const accepted = q.acceptedBlanks || q.options.filter(o => o.isCorrect).map(o => o.text);
+        const accepted = q.acceptedBlanks || (q.options || []).filter(o => o.isCorrect).map(o => o.text);
         const userStr = String(userAnswer).trim().toLowerCase();
         isCorrect = accepted.some(a => a.trim().toLowerCase() === userStr);
         break;
       }
 
       case 'paragraph': {
-        // Teacher review / auto-award points if non-empty
         isCorrect = String(userAnswer).trim().length > 10;
         break;
       }
 
       case 'matching': {
-        // userAnswer is Record<leftStr, rightStr>
         if (q.matchingPairs && typeof userAnswer === 'object') {
           const matchCount = q.matchingPairs.filter(p => userAnswer[p.left] === p.right).length;
           isCorrect = matchCount === q.matchingPairs.length;
@@ -70,7 +304,6 @@ export const attemptService = {
       }
 
       case 'ordering': {
-        // userAnswer is Array of string items in order
         if (q.orderingSequence && Array.isArray(userAnswer)) {
           isCorrect = JSON.stringify(q.orderingSequence) === JSON.stringify(userAnswer);
         }
@@ -78,7 +311,6 @@ export const attemptService = {
       }
 
       case 'hotspot': {
-        // userAnswer is { x, y }
         if (q.hotspotAreas && userAnswer?.x !== undefined) {
           isCorrect = q.hotspotAreas.some(area => {
             if (!area.isCorrect) return false;
@@ -91,7 +323,6 @@ export const attemptService = {
       }
 
       case 'poll': {
-        // Poll is always recorded
         isCorrect = true;
         break;
       }
@@ -101,7 +332,7 @@ export const attemptService = {
       case 'video_question':
       case 'code_question':
       case 'math_formula': {
-        const correctOpt = q.options.find(o => o.isCorrect);
+        const correctOpt = q.options?.find(o => o.isCorrect);
         if (correctOpt) {
           isCorrect = correctOpt.id === userAnswer || correctOpt.text === userAnswer;
         } else if (q.acceptedBlanks && q.acceptedBlanks.length > 0) {
@@ -117,17 +348,22 @@ export const attemptService = {
         isCorrect = false;
     }
 
-    const pointsEarned = isCorrect ? q.points : 0;
+    const pointsEarned = isCorrect ? (q.points || 10) : 0;
     return { isCorrect, pointsEarned };
   },
 
+  /**
+   * Submit attempt with permanent status transition to 'submitted' or 'auto_submitted'.
+   * Atomically updates local storage and Supabase.
+   */
   submitAttempt(
     quiz: Quiz,
     userId: string,
     userName: string,
     userAvatar: string | undefined,
     answers: Record<string, any>,
-    timeSpentSeconds: number
+    timeSpentSeconds: number,
+    statusOverride: AttemptStatus = 'submitted'
   ): QuizAttempt {
     let earnedPoints = 0;
     let maxPoints = 0;
@@ -135,8 +371,8 @@ export const attemptService = {
     let incorrectCount = 0;
     let skippedCount = 0;
 
-    quiz.questions.forEach(q => {
-      maxPoints += q.points;
+    (quiz.questions || []).forEach(q => {
+      maxPoints += q.points || 10;
       const userAnswer = answers[q.id];
       if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
         skippedCount++;
@@ -149,7 +385,7 @@ export const attemptService = {
     });
 
     const percentage = maxPoints > 0 ? Math.round((earnedPoints / maxPoints) * 100) : 0;
-    const isPassed = percentage >= (quiz.settings.passingScorePercentage || 60);
+    const isPassed = percentage >= (quiz.settings?.passingScorePercentage || 60);
 
     // XP calculation: 50 base XP + 10 XP per 10% accuracy + 20 bonus for passing
     const xpEarned = 50 + Math.round(percentage / 10) * 10 + (isPassed ? 20 : 0);
@@ -163,10 +399,8 @@ export const attemptService = {
     const attemptNumber = existingUserAttempts.length + 1;
 
     // Calculate security metrics
-    const isUnusuallyFast = timeSpentSeconds < 15;
-    const tabSwitches = quiz.settings.enableTabSwitchDetection ? 0 : 0;
-    const windowBlurs = 0;
-    const fullscreenExits = 0;
+    const isUnusuallyFast = timeSpentSeconds < 10 && (quiz.questions || []).length > 2;
+    const tabSwitches = quiz.settings?.enableTabSwitchDetection ? 0 : 0;
     const speedAnomalies = isUnusuallyFast ? 1 : 0;
 
     let integrityScore = 100;
@@ -187,55 +421,49 @@ export const attemptService = {
         severity: 'info',
         description: 'Quiz activity session initialized',
       },
-    ];
-
-    if (isUnusuallyFast) {
-      securityEvents.push({
-        id: `evt-${Date.now()}-2`,
+      {
+        id: `evt-${Date.now()}-3`,
         attempt_id: `att-${Date.now()}`,
         student_id: userId,
         quiz_id: quiz.id,
-        event_type: 'speed_anomaly',
+        event_type: 'submitted',
         event_time: completedAtStr,
-        severity: 'warning',
-        description: `Unusually rapid completion (${timeSpentSeconds}s)`,
-      });
-    }
+        severity: 'info',
+        description: `Quiz activity submitted (${statusOverride})`,
+      },
+    ];
 
-    securityEvents.push({
-      id: `evt-${Date.now()}-3`,
-      attempt_id: `att-${Date.now()}`,
-      student_id: userId,
-      quiz_id: quiz.id,
-      event_type: 'submitted',
-      event_time: completedAtStr,
-      severity: 'info',
-      description: 'Quiz activity submitted successfully',
-    });
+    const attemptId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
     const attempt: QuizAttempt = {
-      id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: attemptId,
       quiz_id: quiz.id,
       quiz_title: quiz.settings?.title || 'Untitled Quiz',
       user_id: userId,
+      student_id: userId,
       user_name: userName,
       user_avatar: userAvatar,
+      status: statusOverride,
       score: earnedPoints,
       max_score: maxPoints,
+      total_points: maxPoints,
       percentage,
       correct_count: correctCount,
       incorrect_count: incorrectCount,
       skipped_count: skippedCount,
       xp_earned: xpEarned,
       time_spent_seconds: timeSpentSeconds,
+      time_taken_seconds: timeSpentSeconds,
       answers,
       is_passed: isPassed,
       start_time: startTimeStr,
+      started_at: startTimeStr,
+      submitted_at: completedAtStr,
       completed_at: completedAtStr,
       attempt_number: attemptNumber,
       tab_switch_count: tabSwitches,
-      window_blur_count: windowBlurs,
-      fullscreen_exit_count: fullscreenExits,
+      window_blur_count: 0,
+      fullscreen_exit_count: 0,
       copy_attempt_count: 0,
       paste_attempt_count: 0,
       speed_anomaly_count: speedAnomalies,
@@ -244,24 +472,33 @@ export const attemptService = {
       security_events: securityEvents,
     };
 
-    if (isPassed && quiz.settings.certificate?.enabled) {
+    if (isPassed && quiz.settings?.certificate?.enabled) {
       attempt.certificate_url = `CERT-${quiz.id.slice(0, 6)}-${userId.slice(0, 6)}`;
     }
 
-    const list = this.getAllAttempts();
+    // Save to local storage (replacing any in-progress attempt for this session)
+    let list = this.getAllAttempts();
+    list = list.filter(a => !(a.quiz_id === quiz.id && a.user_id === userId && a.status === 'in_progress'));
     list.unshift(attempt);
+
     try {
       localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(list));
+      // Cleanup transient keys
+      localStorage.removeItem(`test_draft_${quiz.id}`);
+      localStorage.removeItem(`test_timer_${quiz.id}`);
+      localStorage.removeItem(`test_started_at_${quiz.id}`);
     } catch (e) {}
 
+    // Persist to Supabase
     (async () => {
       try {
-        await supabase.from('quiz_attempts').insert({
+        await supabase.from('quiz_attempts').upsert({
           id: attempt.id,
           quiz_id: attempt.quiz_id,
           quiz_title: attempt.quiz_title,
           user_id: attempt.user_id,
           user_name: attempt.user_name,
+          user_avatar: attempt.user_avatar,
           score: attempt.score,
           max_score: attempt.max_score,
           percentage: attempt.percentage,
@@ -271,8 +508,13 @@ export const attemptService = {
           xp_earned: attempt.xp_earned,
           time_spent_seconds: attempt.time_spent_seconds,
           is_passed: attempt.is_passed,
+          status: attempt.status,
           completed_at: attempt.completed_at,
+          answers: attempt.answers,
         });
+
+        // Increment quiz plays count
+        await supabase.rpc('increment_quiz_play_count', { p_quiz_id: quiz.id });
       } catch (e) {}
     })();
 

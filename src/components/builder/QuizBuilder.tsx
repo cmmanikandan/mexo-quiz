@@ -123,7 +123,7 @@ export const QuizBuilder: React.FC = () => {
         tags: [resourceTypeParam, 'Interactive'],
         status: 'draft',
         autoClose: false,
-        attemptsLimit: 0,
+        attemptsLimit: 1,
         shuffleQuestions: true,
         shuffleOptions: true,
         timerMode: 'whole_quiz',

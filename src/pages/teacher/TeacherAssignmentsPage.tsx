@@ -31,9 +31,9 @@ export const TeacherAssignmentsPage: React.FC = () => {
       class_id: cObj.id,
       class_name: cObj.name,
       teacher_id: 'mexo-teacher',
-      due_date: new Date(dueDate).toISOString(),
-      attempts_allowed: 2,
-      allow_late_submission: true,
+      due_date: new Date(Date.now() + 7 * 86400000).toISOString(),
+      attempts_allowed: 1,
+      allow_late_submission: false,
       auto_remind: true,
     });
 

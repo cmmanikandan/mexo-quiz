@@ -172,15 +172,15 @@ export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Allowed Attempts</label>
             <select
-              value={settings.attemptsLimit}
+              value={settings.attemptsLimit !== undefined && settings.attemptsLimit !== null ? settings.attemptsLimit : 1}
               onChange={e => update({ attemptsLimit: parseInt(e.target.value) })}
-              className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 font-semibold"
+              className="w-full py-2 px-3 text-xs rounded-xl border border-slate-200 font-semibold cursor-pointer"
             >
-              <option value={0}>Unlimited Attempts</option>
-              <option value={1}>1 Attempt Only</option>
+              <option value={1}>1 Attempt Only (Default)</option>
               <option value={2}>2 Attempts</option>
               <option value={3}>3 Attempts</option>
               <option value={5}>5 Attempts</option>
+              <option value={0}>Unlimited Attempts</option>
             </select>
           </div>
         </div>

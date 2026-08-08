@@ -186,10 +186,36 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
     return () => clearInterval(interval);
   }, [sessionState, startedAtTimestamp, durationSeconds, quiz.settings?.timerMode]);
 
-  // Start Quiz Handler (Launches 3-2-1 Countdown)
-  const handlePressStartQuiz = () => {
+  // Intercept Android & Browser Back Button during active test
+  useEffect(() => {
+    if (sessionState === 'in_progress') {
+      window.history.pushState(null, '', window.location.href);
+      const handlePopState = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [sessionState]);
+
+  // Start Quiz Handler (Launches 3-2-1 Countdown & Atomic Start)
+  const handlePressStartQuiz = async () => {
     if (isStarting) return;
     setIsStarting(true);
+
+    const userId = profile?.id || user?.id || 'guest';
+    const userName = profile
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username
+      : user?.email || 'Student';
+    const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url;
+
+    // Atomic start attempt
+    const res = await attemptService.startQuizAttempt(quiz, userId, userName, userAvatar);
+    if (!res.success && res.error === 'attempt_limit_reached') {
+      setIsStarting(false);
+      return;
+    }
+
     setSessionState('countdown');
 
     let count = 3;
@@ -242,7 +268,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
         localStorage.removeItem(`test_timer_${quiz.id}`);
         localStorage.removeItem(`test_started_at_${quiz.id}`);
       } catch (e) {}
-      navigate('/library');
+      navigate('/library', { replace: true });
       return;
     }
 
@@ -253,7 +279,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
     const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url;
 
     const timeSpent = Math.max(1, Math.floor((Date.now() - startedAtTimestamp) / 1000));
-    const attempt = attemptService.submitAttempt(quiz, userId, userName, userAvatar, userAnswers, timeSpent);
+    const attempt = attemptService.submitAttempt(quiz, userId, userName, userAvatar, userAnswers, timeSpent, 'submitted');
 
     // Play Victory Audio
     audioService.playVictoryFanfare();
@@ -264,9 +290,10 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
       localStorage.removeItem(`test_started_at_${quiz.id}`);
     } catch (e) {}
 
+    // Replace history entry so Android/browser Back button cannot reopen the test
     setTimeout(() => {
-      navigate(`/result/${attempt.id}`, { state: { attempt, quiz } });
-    }, 600);
+      navigate(`/result/${attempt.id}`, { state: { attempt, quiz }, replace: true });
+    }, 400);
   };
 
   const formatTimer = (secs: number) => {
@@ -280,26 +307,22 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const markedCount = Object.values(markedForReview).filter(Boolean).length;
 
   const currentUserId = profile?.id || user?.id || 'guest';
-  const pastAttempts = attemptService.getUserAttempts(currentUserId).filter(a => a.quiz_id === quiz.id);
-  const isAttemptLimitReached =
-    !isTeacherPreview &&
-    quiz.settings?.attemptsLimit &&
-    quiz.settings.attemptsLimit > 0 &&
-    pastAttempts.length >= quiz.settings.attemptsLimit;
+  const canStartCheck = attemptService.canStartQuizAttempt(quiz, currentUserId);
+  const isAttemptLimitReached = !isTeacherPreview && !canStartCheck.canStart;
 
   if (isAttemptLimitReached) {
-    const lastAttempt = pastAttempts[0];
+    const lastAttempt = canStartCheck.existingAttempt;
     return (
       <div className="fixed inset-0 bg-slate-950 text-slate-100 z-50 flex items-center justify-center p-4 font-sans select-none">
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
-          <div className="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
-            <Lock className="w-8 h-8" />
+          <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
+            <CheckCircle2 className="w-8 h-8" />
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-xl font-black text-white">Maximum Attempt Limit Reached</h2>
-            <p className="text-xs text-slate-400">
-              You have used all allowed attempts ({pastAttempts.length} of {quiz.settings?.attemptsLimit} attempt used).
+            <h2 className="text-xl font-black text-white">Quiz Completed ✓</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              You have already used your only attempt ({canStartCheck.completedCount} of {canStartCheck.allowedAttempts === 0 ? 'Unlimited' : `${canStartCheck.allowedAttempts} attempt`} used). Your submission has been recorded successfully.
             </p>
           </div>
 
@@ -310,7 +333,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
                 {lastAttempt.score} / {lastAttempt.max_score} ({lastAttempt.percentage}%)
               </p>
               <p className="text-[11px] text-slate-400">
-                Completed on {new Date(lastAttempt.completed_at).toLocaleString()}
+                Completed on {new Date(lastAttempt.completed_at || lastAttempt.submitted_at || Date.now()).toLocaleString()}
               </p>
             </div>
           )}
@@ -318,17 +341,18 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
           <div className="space-y-3 pt-2">
             {lastAttempt && (
               <button
-                onClick={() => navigate(`/result/${lastAttempt.id}`, { state: { attempt: lastAttempt, quiz } })}
-                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+                onClick={() => navigate(`/result/${lastAttempt.id}`, { state: { attempt: lastAttempt, quiz }, replace: true })}
+                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2"
               >
-                View Submitted Results
+                <Award className="w-4 h-4" />
+                <span>View Result</span>
               </button>
             )}
             <button
-              onClick={() => navigate('/library')}
+              onClick={() => navigate('/')}
               className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold text-xs transition-all cursor-pointer"
             >
-              Back to Library
+              Back to Home
             </button>
           </div>
         </div>
@@ -341,8 +365,9 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
     const questionsCount = quiz.questions?.length || 0;
     const totalPoints = quiz.questions?.reduce((acc, q) => acc + (q.points || 1), 0) || questionsCount;
     const durationMins = quiz.settings?.quizDurationMinutes || 10;
-    const attemptsLimit = quiz.settings?.attemptsLimit || 1;
+    const attemptsLimit = attemptService.getQuizAttemptsLimit(quiz);
     const passingScore = quiz.settings?.passingScorePercentage || 60;
+    const isResume = canStartCheck.reason === 'active_in_progress';
 
     return (
       <div className="fixed inset-0 bg-slate-950 text-white z-50 flex items-center justify-center p-4 select-none font-sans">
@@ -381,7 +406,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
             <div className="flex justify-between text-slate-300">
               <span className="text-slate-400">Allowed Attempts:</span>
-              <span className="font-bold">{attemptsLimit === 0 ? 'Unlimited' : `${attemptsLimit} Attempt`}</span>
+              <span className="font-bold text-amber-300">{attemptsLimit === 0 ? 'Unlimited' : `${attemptsLimit} Attempt Only`}</span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span className="text-slate-400">Passing Score:</span>
@@ -389,9 +414,15 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             </div>
           </div>
 
-          <p className="text-xs text-purple-200 bg-purple-950/60 p-3 rounded-2xl border border-purple-800/60">
-            🔔 Your attempt & timer will begin only after you press <span className="font-bold text-white">Start Quiz</span>.
-          </p>
+          {isResume ? (
+            <p className="text-xs text-amber-200 bg-amber-950/60 p-3 rounded-2xl border border-amber-800/60 font-semibold">
+              🔔 You have an unfinished attempt in progress. Click below to resume your test.
+            </p>
+          ) : (
+            <p className="text-xs text-purple-200 bg-purple-950/60 p-3 rounded-2xl border border-purple-800/60">
+              🔔 Your attempt & timer will begin only after you press <span className="font-bold text-white">{isResume ? 'Resume Quiz' : 'Start Quiz'}</span>.
+            </p>
+          )}
 
           <button
             onClick={handlePressStartQuiz}
@@ -403,7 +434,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             ) : (
               <>
                 <Play className="w-5 h-5 fill-white" />
-                <span>Start Quiz</span>
+                <span>{isResume ? 'Resume Quiz' : 'Start Quiz'}</span>
               </>
             )}
           </button>
@@ -715,9 +746,19 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-white">Submit Quiz Assessment?</h3>
-                <p className="text-xs text-slate-400">Review your answered status before final submission.</p>
+                <p className="text-xs text-slate-400">
+                  You have answered <span className="font-bold text-white">{answeredCount}</span> of{' '}
+                  <span className="font-bold text-white">{sessionQuestions.length}</span> questions. Once submitted, you cannot change your answers.
+                </p>
               </div>
             </div>
+
+            {attemptService.getQuizAttemptsLimit(quiz) === 1 && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>⚠️ You have 1 attempt only. Once submitted, you cannot return to this test.</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center">
               <div>
@@ -737,16 +778,24 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
               <button
                 onClick={() => setShowFinishModal(false)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer"
+                disabled={isSubmitting}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer disabled:opacity-50"
               >
-                Continue Quiz
+                Cancel
               </button>
               <button
                 onClick={handleFinalSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-lg transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-lg transition-all cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
               >
-                {isSubmitting ? 'Submitting...' : 'Confirm Submit'}
+                {isSubmitting ? (
+                  <span>Submitting...</span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Submit Quiz</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

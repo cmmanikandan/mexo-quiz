@@ -118,7 +118,7 @@ export const ClassDetailPage: React.FC = () => {
       class_name: classObj.name,
       teacher_id: currentUserId,
       due_date: new Date(dueDate).toISOString(),
-      attempts_allowed: 2,
+      attempts_allowed: 1,
       allow_late_submission: true,
       auto_remind: true,
     });

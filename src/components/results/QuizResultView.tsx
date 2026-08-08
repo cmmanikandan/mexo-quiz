@@ -48,10 +48,27 @@ export const QuizResultView: React.FC = () => {
     );
   }
 
+  // Prevent Android / Browser Back Button from reopening the test screen
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const chartData = [
     { name: 'Score %', value: attempt.percentage, fill: '#7C3AED' },
-    { name: 'Target %', value: quiz?.settings.passingScorePercentage || 60, fill: '#cbd5e1' },
+    { name: 'Target %', value: quiz?.settings?.passingScorePercentage || 60, fill: '#cbd5e1' },
   ];
+
+  const allowedAttempts = attemptService.getQuizAttemptsLimit(quiz);
+  const userAttempts = attemptService.getUserAttempts(attempt.user_id).filter(a => a.quiz_id === attempt.quiz_id);
+  const completedAttempts = userAttempts.filter(
+    a => a.status === 'submitted' || a.status === 'auto_submitted' || a.status === 'expired' || (!a.status && a.completed_at)
+  );
+  const canRetake = allowedAttempts === 0 || completedAttempts.length < allowedAttempts;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -68,7 +85,7 @@ export const QuizResultView: React.FC = () => {
 
         <div>
           <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold uppercase tracking-wider">
-            {attempt.is_passed ? 'Quiz Passed — Congratulations!' : 'Keep Practicing!'}
+            {attempt.is_passed ? 'Quiz Passed — Congratulations!' : 'Quiz Submitted Successfully ✓'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold mt-2 tracking-tight">
             {attempt.quiz_title}
@@ -92,6 +109,14 @@ export const QuizResultView: React.FC = () => {
           <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-center">
             <p className="text-[10px] text-white/80 uppercase font-bold">Time Spent</p>
             <p className="text-xl font-extrabold">{Math.floor(attempt.time_spent_seconds / 60)}m {attempt.time_spent_seconds % 60}s</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-center">
+            <p className="text-[10px] text-white/80 uppercase font-bold">Attempt Status</p>
+            <p className="text-xl font-extrabold text-emerald-300">Submitted ✓</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-center">
+            <p className="text-[10px] text-white/80 uppercase font-bold">Attempt</p>
+            <p className="text-xl font-extrabold">{completedAttempts.length || 1} of {allowedAttempts === 0 ? '∞' : allowedAttempts}</p>
           </div>
         </div>
 
@@ -266,21 +291,20 @@ export const QuizResultView: React.FC = () => {
         <div className="flex items-center space-x-2">
           {quiz && (
             (() => {
-              const isSingleAttempt = quiz.settings?.attemptsLimit === 1 || quiz.resource_type === 'assessment' || quiz.settings?.allowRetakes === false;
-              if (!isSingleAttempt) {
+              if (canRetake) {
                 return (
                   <button
                     onClick={() => navigate(`/quiz/${quiz.id}`)}
                     className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center space-x-2"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    <span>Retry Quiz</span>
+                    <span>Attempt Again ({completedAttempts.length}/{allowedAttempts === 0 ? '∞' : allowedAttempts})</span>
                   </button>
                 );
               } else {
                 return (
                   <span className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-400 font-bold text-xs border border-slate-700">
-                    Single Attempt Test (No Retakes)
+                    1 Attempt Only (Submitted ✓ — No Retakes Allowed)
                   </span>
                 );
               }

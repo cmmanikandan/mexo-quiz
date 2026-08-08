@@ -48,10 +48,35 @@ export const QuizPlayer: React.FC = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showFormulaSheet, setShowFormulaSheet] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime] = useState(Date.now());
 
+  const currentUserId = profile?.id || 'guest';
+
+  // Check attempt limit & status
+  useEffect(() => {
+    if (!quiz || isPreviewParam) return;
+    const check = attemptService.canStartQuizAttempt(quiz, currentUserId);
+    if (!check.canStart && check.existingAttempt) {
+      navigate(`/result/${check.existingAttempt.id}`, {
+        replace: true,
+        state: { attempt: check.existingAttempt, quiz },
+      });
+    }
+  }, [quiz, currentUserId, isPreviewParam, navigate]);
+
+  // Intercept Android & Browser Back Button during active quiz
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Duration in seconds
-  const totalDuration = (quiz?.settings.quizDurationMinutes || 10) * 60;
+  const totalDuration = (quiz?.settings?.quizDurationMinutes || 10) * 60;
   const { remainingSeconds, formatTime } = useTimer(totalDuration, () => {
     handleSubmitQuiz();
   });
@@ -90,9 +115,10 @@ export const QuizPlayer: React.FC = () => {
   const currentQ = quiz.questions[currentIndex] || quiz.questions[0];
   const progressPct = quiz.questions.length > 0 ? Math.round(((currentIndex + 1) / quiz.questions.length) * 100) : 100;
   const quizTitle = quiz.settings?.title || 'Untitled Quiz';
+  const allowedAttempts = attemptService.getQuizAttemptsLimit(quiz);
 
   // Check single attempt / test rules
-  const isSingleAttempt = quiz.settings?.attemptsLimit === 1 || (quiz.resource_type as string) === 'assessment';
+  const isSingleAttempt = allowedAttempts === 1 || (quiz.resource_type as string) === 'assessment';
 
   const handleAnswerChange = (ans: any) => {
     audioService.playTickSound();
@@ -110,6 +136,9 @@ export const QuizPlayer: React.FC = () => {
   };
 
   const handleSubmitQuiz = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     audioService.playVictoryFanfare();
     const timeSpent = Math.max(1, Math.round((Date.now() - startTime) / 1000));
     const attempt = attemptService.submitAttempt(
@@ -118,10 +147,11 @@ export const QuizPlayer: React.FC = () => {
       profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : 'Guest User',
       profile?.avatar_url,
       userAnswers,
-      timeSpent
+      timeSpent,
+      'submitted'
     );
     if (isFullscreen) exitFullscreen();
-    navigate(`/result/${attempt.id}`);
+    navigate(`/result/${attempt.id}`, { replace: true, state: { attempt, quiz } });
   };
 
   return (
@@ -318,19 +348,36 @@ export const QuizPlayer: React.FC = () => {
       </MexoModal>
 
       {/* Submit Confirmation Modal */}
-      <MexoModal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title="Submit Quiz Attempt?" maxWidth="sm">
+      <MexoModal isOpen={showSubmitModal} onClose={() => !isSubmitting && setShowSubmitModal(false)} title="Submit Quiz?" maxWidth="sm">
         <div className="space-y-4 pt-1">
           <p className="text-xs text-slate-600">
             You have answered <span className="font-bold text-slate-900">{Object.keys(userAnswers).length}</span> of{' '}
-            <span className="font-bold text-slate-900">{quiz.questions.length}</span> questions.
+            <span className="font-bold text-slate-900">{quiz.questions.length}</span> questions. Once submitted, you cannot change your answers.
           </p>
+
+          {allowedAttempts === 1 && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>⚠️ You have 1 attempt only.</span>
+            </div>
+          )}
+
           <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-            <MexoButton variant="outline" size="sm" onClick={() => setShowSubmitModal(false)}>
-              Continue Quiz
-            </MexoButton>
-            <MexoButton variant="purple" size="sm" onClick={handleSubmitQuiz}>
-              Submit Now
-            </MexoButton>
+            <button
+              onClick={() => setShowSubmitModal(false)}
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmitQuiz}
+              disabled={isSubmitting}
+              className="px-5 py-2 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isSubmitting ? 'Submitting...' : 'Submit Quiz'}</span>
+            </button>
           </div>
         </div>
       </MexoModal>

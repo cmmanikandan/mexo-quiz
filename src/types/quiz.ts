@@ -252,25 +252,34 @@ export interface SecurityEvent {
   metadata?: Record<string, any>;
 }
 
+export type AttemptStatus = 'not_started' | 'in_progress' | 'submitted' | 'auto_submitted' | 'expired';
+
 export interface QuizAttempt {
   id: string;
   quiz_id: string;
   quiz_title: string;
   user_id: string;
+  student_id?: string;
   user_name: string;
   user_avatar?: string;
+  assignment_id?: string;
+  status?: AttemptStatus;
   score: number;
   max_score: number;
+  total_points?: number;
   percentage: number;
   correct_count: number;
   incorrect_count: number;
   skipped_count: number;
   xp_earned: number;
   time_spent_seconds: number;
+  time_taken_seconds?: number;
   answers: Record<string, any>; // questionId -> answer
   is_passed: boolean;
   certificate_url?: string;
   start_time?: string;
+  started_at?: string;
+  submitted_at?: string;
   completed_at: string;
   attempt_number?: number;
 
