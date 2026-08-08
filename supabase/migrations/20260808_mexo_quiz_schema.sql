@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   score INTEGER NOT NULL DEFAULT 0,
   max_score INTEGER NOT NULL DEFAULT 0,
   percentage INTEGER NOT NULL DEFAULT 0,
+  correct_count INTEGER NOT NULL DEFAULT 0,
+  incorrect_count INTEGER NOT NULL DEFAULT 0,
+  skipped_count INTEGER NOT NULL DEFAULT 0,
   xp_earned INTEGER NOT NULL DEFAULT 0,
   time_spent_seconds INTEGER NOT NULL DEFAULT 0,
   answers JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -35,6 +38,11 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   certificate_url TEXT,
   completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Idempotent column additions for existing tables
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS correct_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS incorrect_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS skipped_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS public.question_bank (
   id TEXT PRIMARY KEY,
