@@ -72,7 +72,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
             className="px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs transition-all cursor-pointer flex items-center justify-center space-x-1.5 disabled:opacity-50"
           >
             <LogOut className="w-4 h-4" />
-            <span>Leave Without Saving</span>
+            <span>Discard Changes</span>
           </button>
 
           <button
@@ -88,7 +88,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>Save & Leave</span>
+                <span>Save Changes</span>
               </>
             )}
           </button>

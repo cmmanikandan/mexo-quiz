@@ -240,6 +240,18 @@ export interface HomeworkAssignment {
   status: 'active' | 'due_soon' | 'completed' | 'expired';
 }
 
+export interface SecurityEvent {
+  id: string;
+  attempt_id: string;
+  student_id: string;
+  quiz_id: string;
+  event_type: 'quiz_started' | 'tab_switch' | 'window_blur' | 'fullscreen_exit' | 'copy_attempt' | 'paste_attempt' | 'speed_anomaly' | 'submitted';
+  event_time: string;
+  severity: 'info' | 'warning' | 'critical';
+  description: string;
+  metadata?: Record<string, any>;
+}
+
 export interface QuizAttempt {
   id: string;
   quiz_id: string;
@@ -258,7 +270,20 @@ export interface QuizAttempt {
   answers: Record<string, any>; // questionId -> answer
   is_passed: boolean;
   certificate_url?: string;
+  start_time?: string;
   completed_at: string;
+  attempt_number?: number;
+
+  // Security & Integrity Metrics
+  tab_switch_count?: number;
+  window_blur_count?: number;
+  fullscreen_exit_count?: number;
+  copy_attempt_count?: number;
+  paste_attempt_count?: number;
+  speed_anomaly_count?: number;
+  integrity_score?: number;
+  security_status?: 'clean' | 'flagged' | 'invalidated';
+  security_events?: SecurityEvent[];
 }
 
 export interface LiveSession {

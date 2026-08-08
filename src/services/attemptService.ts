@@ -154,6 +154,65 @@ export const attemptService = {
     // XP calculation: 50 base XP + 10 XP per 10% accuracy + 20 bonus for passing
     const xpEarned = 50 + Math.round(percentage / 10) * 10 + (isPassed ? 20 : 0);
 
+    const now = new Date();
+    const startTimeDate = new Date(now.getTime() - timeSpentSeconds * 1000);
+    const startTimeStr = startTimeDate.toISOString();
+    const completedAtStr = now.toISOString();
+
+    const existingUserAttempts = this.getQuizAttempts(quiz.id).filter(a => a.user_id === userId);
+    const attemptNumber = existingUserAttempts.length + 1;
+
+    // Calculate security metrics
+    const isUnusuallyFast = timeSpentSeconds < 15;
+    const tabSwitches = quiz.settings.enableTabSwitchDetection ? 0 : 0;
+    const windowBlurs = 0;
+    const fullscreenExits = 0;
+    const speedAnomalies = isUnusuallyFast ? 1 : 0;
+
+    let integrityScore = 100;
+    if (tabSwitches > 0) integrityScore -= tabSwitches * 25;
+    if (isUnusuallyFast) integrityScore -= 30;
+    if (integrityScore < 0) integrityScore = 0;
+
+    const securityStatus: 'clean' | 'flagged' | 'invalidated' = integrityScore >= 80 ? 'clean' : 'flagged';
+
+    const securityEvents: any[] = [
+      {
+        id: `evt-${Date.now()}-1`,
+        attempt_id: `att-${Date.now()}`,
+        student_id: userId,
+        quiz_id: quiz.id,
+        event_type: 'quiz_started',
+        event_time: startTimeStr,
+        severity: 'info',
+        description: 'Quiz activity session initialized',
+      },
+    ];
+
+    if (isUnusuallyFast) {
+      securityEvents.push({
+        id: `evt-${Date.now()}-2`,
+        attempt_id: `att-${Date.now()}`,
+        student_id: userId,
+        quiz_id: quiz.id,
+        event_type: 'speed_anomaly',
+        event_time: completedAtStr,
+        severity: 'warning',
+        description: `Unusually rapid completion (${timeSpentSeconds}s)`,
+      });
+    }
+
+    securityEvents.push({
+      id: `evt-${Date.now()}-3`,
+      attempt_id: `att-${Date.now()}`,
+      student_id: userId,
+      quiz_id: quiz.id,
+      event_type: 'submitted',
+      event_time: completedAtStr,
+      severity: 'info',
+      description: 'Quiz activity submitted successfully',
+    });
+
     const attempt: QuizAttempt = {
       id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       quiz_id: quiz.id,
@@ -171,7 +230,18 @@ export const attemptService = {
       time_spent_seconds: timeSpentSeconds,
       answers,
       is_passed: isPassed,
-      completed_at: new Date().toISOString(),
+      start_time: startTimeStr,
+      completed_at: completedAtStr,
+      attempt_number: attemptNumber,
+      tab_switch_count: tabSwitches,
+      window_blur_count: windowBlurs,
+      fullscreen_exit_count: fullscreenExits,
+      copy_attempt_count: 0,
+      paste_attempt_count: 0,
+      speed_anomaly_count: speedAnomalies,
+      integrity_score: integrityScore,
+      security_status: securityStatus,
+      security_events: securityEvents,
     };
 
     if (isPassed && quiz.settings.certificate?.enabled) {

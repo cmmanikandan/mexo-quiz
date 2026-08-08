@@ -198,8 +198,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               <>
                 {/* Resource Mode Options Grid */}
                 <div className="space-y-3">
-                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                    Select Resource Mode
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                    How do you want to use this quiz?
                   </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
