@@ -292,6 +292,22 @@ export const AppContent: React.FC = () => {
         }
       />
       <Route
+        path="/flashcards/:id"
+        element={
+          <ProtectedRoute>
+            <QuizPlayer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lesson/:id"
+        element={
+          <ProtectedRoute>
+            <QuizPlayer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/builder/:id"
         element={
           <ProtectedRoute>
