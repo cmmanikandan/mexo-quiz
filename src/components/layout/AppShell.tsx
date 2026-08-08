@@ -12,13 +12,13 @@ export const AppShell: React.FC<{ children: React.ReactNode; hideSidebar?: boole
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-purple-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-purple-500 selection:text-white max-w-full overflow-x-hidden">
       <AppHeader
         onHamburger={() => setSidebarOpen(!sidebarOpen)}
         onOpenCreate={() => setCreateModalOpen(true)}
       />
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex max-w-full overflow-x-hidden">
         {!hideSidebar && (
           <AppSidebar
             isOpen={sidebarOpen}
@@ -27,7 +27,7 @@ export const AppShell: React.FC<{ children: React.ReactNode; hideSidebar?: boole
           />
         )}
 
-        <main className={`flex-1 transition-all duration-200 pb-20 lg:pb-8 ${!hideSidebar ? 'lg:pl-64' : ''}`}>
+        <main className={`flex-1 min-w-0 max-w-full transition-all duration-200 pb-20 lg:pb-8 overflow-x-hidden ${!hideSidebar ? 'lg:pl-64' : ''}`}>
           {children}
         </main>
       </div>
