@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { RoleProvider } from './contexts/RoleContext';
 import { AppShell } from './components/layout/AppShell';
 
+import { LandingPage } from './pages/landing/LandingPage';
 import { SignInPage } from './pages/auth/SignInPage';
 import { DashboardPage } from './pages/home/DashboardPage';
 import { QuizLibraryPage } from './pages/library/QuizLibraryPage';
@@ -43,7 +44,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   return <>{children}</>;
@@ -52,6 +53,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 export const AppContent: React.FC = () => {
   return (
     <Routes>
+      <Route path="/welcome" element={<LandingPage />} />
       <Route path="/signin" element={<SignInPage />} />
 
       {/* Main Shelled Routes */}
@@ -252,7 +254,7 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/welcome" replace />} />
     </Routes>
   );
 };
