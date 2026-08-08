@@ -79,7 +79,7 @@ export const QuizPlayer: React.FC = () => {
 
   const currentQ = quiz.questions[currentIndex] || quiz.questions[0];
   const progressPct = quiz.questions.length > 0 ? Math.round(((currentIndex + 1) / quiz.questions.length) * 100) : 100;
-  const quizTitle = quiz.settings?.title || quiz.title || 'Untitled Quiz';
+  const quizTitle = quiz.settings?.title || 'Untitled Quiz';
 
   const handleAnswerChange = (ans: any) => {
     setUserAnswers(prev => ({

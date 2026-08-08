@@ -39,8 +39,8 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   onClose,
   isTeacherPreview = false,
 }) => {
-  const titleText = quiz.settings?.title || quiz.title || 'Untitled Quiz';
-  useDocumentTitle(`${isTeacherPreview ? '[PREVIEW] ' : ''}Exam Mode: ${titleText}`);
+  const quizTitle = quiz.settings?.title || 'Untitled Quiz';
+  useDocumentTitle(`${isTeacherPreview ? '[PREVIEW] ' : ''}Exam Mode: ${quizTitle}`);
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
@@ -209,7 +209,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
               </span>
             </div>
             <h1 className="text-xs sm:text-sm font-extrabold text-white truncate max-w-[150px] sm:max-w-xs md:max-w-md">
-              {titleText}
+              {quizTitle}
             </h1>
           </div>
         </div>

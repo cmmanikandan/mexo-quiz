@@ -157,7 +157,7 @@ export const attemptService = {
     const attempt: QuizAttempt = {
       id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       quiz_id: quiz.id,
-      quiz_title: quiz.settings?.title || quiz.title || 'Untitled Quiz',
+      quiz_title: quiz.settings?.title || 'Untitled Quiz',
       user_id: userId,
       user_name: userName,
       user_avatar: userAvatar,
