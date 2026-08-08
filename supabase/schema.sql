@@ -590,13 +590,80 @@ DROP POLICY IF EXISTS "Manage Live Sessions" ON public.live_sessions;
 CREATE POLICY "Read Live Sessions" ON public.live_sessions FOR SELECT USING (true);
 CREATE POLICY "Manage Live Sessions" ON public.live_sessions FOR ALL USING (true);
 
-DROP POLICY IF EXISTS "Read Live Participants" ON public.live_participants;
-DROP POLICY IF EXISTS "Manage Live Participants" ON public.live_participants;
-CREATE POLICY "Read Live Participants" ON public.live_participants FOR SELECT USING (true);
-CREATE POLICY "Manage Live Participants" ON public.live_participants FOR ALL USING (true);
+-- ====================================================================
+-- 20. REALTIME PUBLICATIONS
+-- ====================================================================
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.quizzes, public.quiz_attempts, public.live_sessions, public.live_participants, public.notifications;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_object THEN NULL;
+END;
+$$;
 
--- Notifications
-DROP POLICY IF EXISTS "Read Notifications" ON public.notifications;
-DROP POLICY IF EXISTS "Manage Notifications" ON public.notifications;
-CREATE POLICY "Read Notifications" ON public.notifications FOR SELECT USING (true);
-CREATE POLICY "Manage Notifications" ON public.notifications FOR ALL USING (true);
+-- ====================================================================
+-- 21. AUTH USER PROFILE AUTO-PROVISIONING TRIGGER
+-- ====================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id,
+    username,
+    primary_address,
+    first_name,
+    last_name,
+    avatar_url,
+    created_at,
+    updated_at
+  ) VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'first_name', split_part(NEW.raw_user_meta_data->>'full_name', ' ', 1), 'MEXO'),
+    COALESCE(NEW.raw_user_meta_data->>'last_name', split_part(NEW.raw_user_meta_data->>'full_name', ' ', 2), 'Scholar'),
+    NEW.raw_user_meta_data->>'avatar_url',
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Create initial student progress record
+  INSERT INTO public.student_progress (
+    id,
+    student_id,
+    xp,
+    level,
+    current_streak,
+    longest_streak,
+    total_quizzes_taken,
+    total_passed,
+    overall_accuracy,
+    updated_at
+  ) VALUES (
+    'prog-' || NEW.id,
+    NEW.id,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0.00,
+    NOW()
+  )
+  ON CONFLICT (student_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
