@@ -37,6 +37,11 @@ import {
   Plus,
   Play,
   Radio,
+  FileText,
+  QrCode,
+  ListOrdered,
+  HelpCircle,
+  Power,
 } from 'lucide-react';
 
 export const QuizDetailPage: React.FC = () => {
@@ -46,12 +51,14 @@ export const QuizDetailPage: React.FC = () => {
 
   const [quiz, setQuiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'matrix' | 'leaderboard' | 'anticheat'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'matrix' | 'questions' | 'leaderboard' | 'anticheat'>('overview');
 
   // Modals state
   const [selectedStudentAttempt, setSelectedStudentAttempt] = useState<QuizAttempt | null>(null);
   const [selectedSecurityAttempt, setSelectedSecurityAttempt] = useState<QuizAttempt | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -93,6 +100,7 @@ export const QuizDetailPage: React.FC = () => {
   const durationMinutes = quiz.settings?.quizDurationMinutes || 10;
   const status = quiz.settings?.status || 'published';
   const shareUrl = `${window.location.origin}/quiz/${quiz.id}`;
+  const joinCode = quiz.id.replace(/[^0-9]/g, '').slice(0, 6).padEnd(6, '7');
 
   // Overview Statistics Calculations
   const totalSubmissions = attempts.length;
@@ -126,10 +134,30 @@ export const QuizDetailPage: React.FC = () => {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(joinCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
   const handleDuplicate = async () => {
     const duplicated = await quizService.duplicateQuiz(quiz.id, currentUserName, currentUserId);
     if (duplicated) {
       navigate(`/quiz/${duplicated.id}`);
+    }
+  };
+
+  const handleEndQuiz = async () => {
+    if (window.confirm('Are you sure you want to end/archive this quiz session?')) {
+      const updated = {
+        ...quiz,
+        settings: {
+          ...quiz.settings,
+          status: 'archived' as any,
+        },
+      };
+      await quizService.saveQuiz(updated);
+      setQuiz(updated);
     }
   };
 
@@ -142,8 +170,8 @@ export const QuizDetailPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 select-none overflow-x-hidden pb-[90px]">
-      {/* 2. QUIZ DETAILS HEADER */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+      {/* 2. QUIZ DETAILS HEADER CARD */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
         {/* Top Header Row */}
         <div className="flex items-center justify-between">
           {/* Desktop & Mobile Left Branding */}
@@ -171,9 +199,8 @@ export const QuizDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions: Desktop Buttons vs Mobile ⋮ Dropdown */}
+          {/* Actions Menu */}
           <div className="flex items-center space-x-2">
-            {/* Desktop Action Buttons */}
             <div className="hidden sm:flex items-center space-x-2">
               <button
                 onClick={() => navigate(`/quiz/${quiz.id}?preview=true`)}
@@ -192,17 +219,8 @@ export const QuizDetailPage: React.FC = () => {
                   <span>Edit</span>
                 </button>
               )}
-
-              <button
-                onClick={handleCopyLink}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-all cursor-pointer inline-flex items-center space-x-1.5 shadow-2xs"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied!' : 'Share'}</span>
-              </button>
             </div>
 
-            {/* ⋮ More Options Dropdown Menu (Mobile & Desktop) */}
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer">
@@ -230,13 +248,6 @@ export const QuizDetailPage: React.FC = () => {
                     <span>Edit</span>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
-                    onClick={handleCopyLink}
-                    className="sm:hidden flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer outline-none"
-                  >
-                    <Share2 className="w-4 h-4 text-emerald-600" />
-                    <span>Share Link</span>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
                     onClick={handleDuplicate}
                     className="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer outline-none"
                   >
@@ -244,11 +255,11 @@ export const QuizDetailPage: React.FC = () => {
                     <span>Duplicate</span>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
-                    onClick={() => alert('Quiz archived')}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer outline-none"
+                    onClick={handleEndQuiz}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer outline-none"
                   >
-                    <Archive className="w-4 h-4 text-amber-600" />
-                    <span>Archive</span>
+                    <Power className="w-4 h-4 text-amber-600" />
+                    <span>End / Archive Quiz</span>
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="h-px bg-slate-100 my-1" />
                   <DropdownMenu.Item
@@ -289,6 +300,41 @@ export const QuizDetailPage: React.FC = () => {
             </span>
           </div>
         </div>
+
+        {/* Primary Action Buttons: Assign, Host Live, Share QR/Link, End Quiz */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
+          <button
+            onClick={() => navigate('/assignments')}
+            className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs border border-blue-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span>Assign Quiz</span>
+          </button>
+
+          <button
+            onClick={() => navigate(`/host/${joinCode}`)}
+            className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs border border-purple-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+          >
+            <Radio className="w-4 h-4 text-[#7C3AED]" />
+            <span>Host Live Room</span>
+          </button>
+
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-xs"
+          >
+            <QrCode className="w-4 h-4 text-white" />
+            <span>Share & QR Code</span>
+          </button>
+
+          <button
+            onClick={handleEndQuiz}
+            className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs border border-amber-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+          >
+            <Power className="w-4 h-4 text-amber-600" />
+            <span>End Quiz Session</span>
+          </button>
+        </div>
       </div>
 
       {/* 3. QUIZ DETAILS TABS (Horizontally scrollable on mobile) */}
@@ -298,6 +344,7 @@ export const QuizDetailPage: React.FC = () => {
             { id: 'overview', label: 'Overview', icon: BarChart3 },
             { id: 'students', label: 'Students', icon: Users },
             { id: 'matrix', label: 'Question Matrix', icon: Grid },
+            { id: 'questions', label: 'Questions & Answers', icon: ListOrdered },
             { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
             { id: 'anticheat', label: 'Anti-Cheating', icon: ShieldAlert },
           ].map(tab => {
@@ -394,7 +441,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 5. STUDENTS TAB (Kept as table on mobile with sticky student column) */}
+      {/* 5. STUDENTS TAB */}
       {activeTab === 'students' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
@@ -425,7 +472,6 @@ export const QuizDetailPage: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                   {attempts.map(att => (
                     <tr key={att.id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* Sticky Student Column */}
                       <td className="p-3.5 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-2xs">
                         <div className="flex items-center space-x-2">
                           <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
@@ -470,87 +516,74 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 6. STUDENT ATTEMPT DETAILS MODAL */}
-      {selectedStudentAttempt && (
-        <MexoModal
-          isOpen={!!selectedStudentAttempt}
-          onClose={() => setSelectedStudentAttempt(null)}
-          title={`Student Attempt: ${selectedStudentAttempt.user_name}`}
-          maxWidth="lg"
-        >
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Status</p>
-                <p className={`text-xs font-black mt-0.5 ${selectedStudentAttempt.is_passed ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {selectedStudentAttempt.is_passed ? 'PASSED' : 'FAILED'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Score</p>
-                <p className="text-xs font-black text-slate-900 mt-0.5">
-                  {selectedStudentAttempt.score} / {selectedStudentAttempt.max_score} ({selectedStudentAttempt.percentage}%)
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Time Taken</p>
-                <p className="text-xs font-black text-slate-900 mt-0.5 font-mono">
-                  {Math.floor(selectedStudentAttempt.time_spent_seconds / 60)}m {selectedStudentAttempt.time_spent_seconds % 60}s
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Completed At</p>
-                <p className="text-[11px] font-bold text-slate-700 mt-0.5 font-mono">
-                  {new Date(selectedStudentAttempt.completed_at).toLocaleTimeString()}
-                </p>
-              </div>
+      {/* 6. QUESTIONS & ANSWERS TAB */}
+      {activeTab === 'questions' && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-6 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">Quiz Questions & Answer Keys</h3>
+              <p className="text-xs text-slate-500">Full list of questions, option choices, and correct answer keys.</p>
             </div>
+            <span className="px-3 py-1 rounded-full bg-purple-50 text-[#7C3AED] border border-purple-100 text-xs font-mono font-bold">
+              {quiz.questions.length} Questions
+            </span>
+          </div>
 
-            <h4 className="text-xs font-extrabold text-slate-900">Answer Breakdown Table</h4>
-            <div className="overflow-x-auto border border-slate-200 rounded-2xl max-w-full">
-              <table className="w-full text-left text-xs min-w-[600px]">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                    <th className="p-3">Question</th>
-                    <th className="p-3">Student Answer</th>
-                    <th className="p-3">Correct Answer</th>
-                    <th className="p-3 text-center">Result</th>
-                    <th className="p-3 text-right">Points</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {quiz.questions.map((q, idx) => {
-                    const userAnswer = selectedStudentAttempt.answers[q.id];
-                    const { isCorrect } = attemptService.gradeQuestion(q, userAnswer);
-                    const correctOpt = q.options?.find(o => o.isCorrect);
+          <div className="space-y-4">
+            {quiz.questions.map((q, idx) => (
+              <div key={q.id} className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-purple-600 tracking-wider">
+                      Question {idx + 1} • {q.type.replace('_', ' ')}
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-900 leading-snug">{q.title}</h4>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-mono font-bold shrink-0">
+                    {q.points} Pts
+                  </span>
+                </div>
 
+                {q.mediaUrl && (
+                  <div className="rounded-xl overflow-hidden max-h-40 bg-slate-900 p-2 flex items-center justify-center">
+                    <img src={q.mediaUrl} alt="Question Media" className="max-h-36 object-contain" />
+                  </div>
+                )}
+
+                {/* Options List */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {q.options?.map(opt => {
+                    const isCorrect = opt.isCorrect;
                     return (
-                      <tr key={q.id}>
-                        <td className="p-3 font-bold text-slate-900">Q{idx + 1}</td>
-                        <td className="p-3 text-slate-700 truncate max-w-[150px]">
-                          {userAnswer ? String(userAnswer) : 'Skipped'}
-                        </td>
-                        <td className="p-3 text-emerald-700 font-semibold truncate max-w-[150px]">
-                          {correctOpt ? correctOpt.text : 'N/A'}
-                        </td>
-                        <td className="p-3 text-center">
-                          {isCorrect ? (
-                            <span className="text-emerald-600 font-black">✓</span>
-                          ) : (
-                            <span className="text-rose-600 font-black">✕</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right font-mono font-bold">
-                          {isCorrect ? q.points : 0}
-                        </td>
-                      </tr>
+                      <div
+                        key={opt.id}
+                        className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between transition-all ${
+                          isCorrect
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <span>{opt.text}</span>
+                        {isCorrect && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold flex items-center space-x-1">
+                            <Check className="w-3 h-3" />
+                            <span>Correct Answer</span>
+                          </span>
+                        )}
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
+
+                {q.explanation && (
+                  <p className="text-xs text-slate-600 bg-amber-50/80 p-3 rounded-xl border border-amber-200">
+                    💡 <span className="font-bold text-amber-800">Explanation:</span> {q.explanation}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-        </MexoModal>
+        </div>
       )}
 
       {/* 7. QUESTION MATRIX TAB */}
@@ -614,39 +647,10 @@ export const QuizDetailPage: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* 8. QUESTION PERFORMANCE TABLE */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
-            <h3 className="text-base font-extrabold text-slate-900">Question Item Analytics Performance</h3>
-            <div className="overflow-x-auto border border-slate-200 rounded-2xl max-w-full">
-              <table className="w-full text-left text-xs min-w-[600px]">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                    <th className="p-3.5">Question</th>
-                    <th className="p-3.5 text-center">Correct %</th>
-                    <th className="p-3.5 text-center">Incorrect %</th>
-                    <th className="p-3.5 text-center">Skipped %</th>
-                    <th className="p-3.5 text-right">Avg Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-                  {quiz.questions.map((q, idx) => (
-                    <tr key={q.id}>
-                      <td className="p-3.5 font-bold text-slate-900">Q{idx + 1}. {q.title}</td>
-                      <td className="p-3.5 text-center font-extrabold text-emerald-600">80%</td>
-                      <td className="p-3.5 text-center font-extrabold text-rose-600">15%</td>
-                      <td className="p-3.5 text-center font-extrabold text-slate-400">5%</td>
-                      <td className="p-3.5 text-right font-mono text-slate-600">14s</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* 9. LEADERBOARD TAB */}
+      {/* 8. LEADERBOARD TAB */}
       {activeTab === 'leaderboard' && (
         <div className="space-y-6">
           <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-900 via-slate-900 to-indigo-950 text-white shadow-md flex items-center justify-between">
@@ -662,10 +666,6 @@ export const QuizDetailPage: React.FC = () => {
               <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10">
                 <p className="text-sm font-black text-emerald-400">{passedAttemptsCount}</p>
                 <p className="text-[9px] font-bold text-purple-200 uppercase">Completed</p>
-              </div>
-              <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10">
-                <p className="text-sm font-black text-amber-300">{avgScorePercentage}%</p>
-                <p className="text-[9px] font-bold text-purple-200 uppercase">Avg Score</p>
               </div>
             </div>
           </div>
@@ -717,7 +717,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 10. ANTI-CHEATING TAB */}
+      {/* 9. ANTI-CHEATING TAB */}
       {activeTab === 'anticheat' && (
         <div className="space-y-6">
           <div className="p-6 rounded-3xl bg-slate-900 text-white space-y-2 shadow-md">
@@ -728,53 +728,8 @@ export const QuizDetailPage: React.FC = () => {
             <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
               Monitor exam security events, tab switches, window blur events, fullscreen exits, blocked actions, speed anomalies, and integrity status for each attempt.
             </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
-              <div className="p-3 rounded-2xl bg-white/10 border border-white/10 text-center">
-                <p className="text-xl font-black">{totalSubmissions}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Total Attempts</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-white/10 border border-white/10 text-center">
-                <p className="text-xl font-black text-emerald-400">{cleanAttempts.length}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Clean Attempts</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-white/10 border border-white/10 text-center">
-                <p className="text-xl font-black text-rose-400">{flaggedAttempts.length}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Flagged Attempts</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-white/10 border border-white/10 text-center">
-                <p className="text-xl font-black text-purple-300">{cleanRatePercentage}%</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">Clean Rate</p>
-              </div>
-            </div>
           </div>
 
-          {/* 11. Security Features Section */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
-            <h3 className="text-base font-extrabold text-slate-900">Active Security Safeguards for this Quiz</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {[
-                { title: 'Tab Switch Detection', enabled: true, desc: 'Detects when a student leaves or switches away from the quiz window.' },
-                { title: 'Window Blur Detection', enabled: true, desc: 'Records when the quiz window loses browser focus.' },
-                { title: 'Fullscreen Exam Mode', enabled: !!quiz.settings?.enforceFullscreen, desc: 'Requires the student to remain in fullscreen mode.' },
-                { title: 'Copy/Paste Blocking', enabled: !!quiz.settings?.preventCopyPaste, desc: 'Blocks or restricts copy/paste and text selection where supported.' },
-                { title: 'Speed Anomaly Detection', enabled: true, desc: 'Detects unusually rapid answer completion patterns.' },
-                { title: 'Device/Session Integrity', enabled: true, desc: 'Tracks available session and device integrity signals.' },
-              ].map(feat => (
-                <div key={feat.title} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900">{feat.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${feat.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
-                      {feat.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-normal">{feat.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 12. Anti-Cheating Student Table */}
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
             <h3 className="text-base font-extrabold text-slate-900">Student Security Table</h3>
             {attempts.length === 0 ? (
@@ -834,67 +789,129 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 13. INDIVIDUAL SECURITY DETAILS MODAL */}
-      {selectedSecurityAttempt && (
-        <MexoModal
-          isOpen={!!selectedSecurityAttempt}
-          onClose={() => setSelectedSecurityAttempt(null)}
-          title={`Student Security Details: ${selectedSecurityAttempt.user_name}`}
-          maxWidth="lg"
-        >
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-900 text-white p-4 rounded-2xl">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Integrity Score</p>
-                <p className="text-lg font-black text-purple-300 mt-0.5">{selectedSecurityAttempt.integrity_score || 100}%</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Security Status</p>
-                <p className="text-xs font-black text-emerald-400 mt-0.5 uppercase">
-                  VERIFIED • {(selectedSecurityAttempt.integrity_score || 100) >= 80 ? 'CLEAN' : 'FLAGGED'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Tab Switches</p>
-                <p className="text-xs font-mono font-bold text-white mt-0.5">{selectedSecurityAttempt.tab_switch_count || 0}</p>
-              </div>
-            </div>
-
-            <h4 className="text-xs font-extrabold text-slate-900">Security Event Timeline</h4>
-            <div className="overflow-x-auto border border-slate-200 rounded-2xl max-w-full">
-              <table className="w-full text-left text-xs min-w-[500px]">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                    <th className="p-3">Time</th>
-                    <th className="p-3">Event</th>
-                    <th className="p-3">Description</th>
-                    <th className="p-3 text-right">Severity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {(selectedSecurityAttempt.security_events || [
-                    { id: '1', event_time: selectedSecurityAttempt.completed_at, event_type: 'quiz_started', description: 'Attempt initialized', severity: 'info' },
-                    { id: '2', event_time: selectedSecurityAttempt.completed_at, event_type: 'submitted', description: 'Attempt submitted cleanly', severity: 'info' },
-                  ]).map(evt => (
-                    <tr key={evt.id}>
-                      <td className="p-3 font-mono text-[11px] text-slate-500">
-                        {new Date(evt.event_time).toLocaleTimeString()}
-                      </td>
-                      <td className="p-3 font-bold text-slate-900 capitalize">{evt.event_type.replace('_', ' ')}</td>
-                      <td className="p-3 text-slate-600">{evt.description}</td>
-                      <td className="p-3 text-right">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${evt.severity === 'warning' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {evt.severity}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* 10. SHARE & QR CODE MODAL */}
+      <MexoModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title="Share Quiz & Mobile QR Code"
+        maxWidth="md"
+      >
+        <div className="space-y-5 pt-2 text-center">
+          {/* Join Code Display */}
+          <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 space-y-1">
+            <p className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider">
+              Student Join Code
+            </p>
+            <div className="flex items-center justify-center space-x-3">
+              <span className="text-3xl sm:text-4xl font-black text-[#7C3AED] font-mono tracking-widest">
+                {joinCode}
+              </span>
+              <button
+                onClick={handleCopyCode}
+                className="px-3 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-bold transition-all cursor-pointer inline-flex items-center space-x-1"
+              >
+                {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+              </button>
             </div>
           </div>
-        </MexoModal>
-      )}
+
+          {/* Visual QR Code Generator */}
+          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 text-white max-w-xs mx-auto">
+            <p className="text-xs font-bold text-slate-300">Scan QR Code on Mobile</p>
+            <div className="w-44 h-44 bg-white p-3 rounded-2xl mx-auto flex items-center justify-center shadow-xl">
+              {/* Clean SVG Matrix QR Code Simulation */}
+              <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900 fill-current">
+                <rect x="0" y="0" width="100" height="100" fill="white" />
+                {/* Outer positioning squares */}
+                <rect x="5" y="5" width="25" height="25" fill="black" />
+                <rect x="9" y="9" width="17" height="17" fill="white" />
+                <rect x="13" y="13" width="9" height="9" fill="black" />
+
+                <rect x="70" y="5" width="25" height="25" fill="black" />
+                <rect x="74" y="9" width="17" height="17" fill="white" />
+                <rect x="78" y="13" width="9" height="9" fill="black" />
+
+                <rect x="5" y="70" width="25" height="25" fill="black" />
+                <rect x="9" y="74" width="17" height="17" fill="white" />
+                <rect x="13" y="78" width="9" height="9" fill="black" />
+
+                {/* Pattern Data Dots */}
+                <rect x="35" y="10" width="6" height="6" fill="black" />
+                <rect x="45" y="10" width="6" height="6" fill="black" />
+                <rect x="55" y="10" width="6" height="6" fill="black" />
+                <rect x="35" y="25" width="6" height="6" fill="black" />
+                <rect x="55" y="25" width="6" height="6" fill="black" />
+
+                <rect x="10" y="35" width="6" height="6" fill="black" />
+                <rect x="25" y="35" width="6" height="6" fill="black" />
+                <rect x="40" y="35" width="6" height="6" fill="black" />
+                <rect x="55" y="35" width="6" height="6" fill="black" />
+                <rect x="70" y="35" width="6" height="6" fill="black" />
+                <rect x="85" y="35" width="6" height="6" fill="black" />
+
+                <rect x="10" y="48" width="6" height="6" fill="black" />
+                <rect x="30" y="48" width="6" height="6" fill="black" />
+                <rect x="50" y="48" width="6" height="6" fill="black" />
+                <rect x="70" y="48" width="6" height="6" fill="black" />
+
+                <rect x="35" y="60" width="6" height="6" fill="black" />
+                <rect x="55" y="60" width="6" height="6" fill="black" />
+                <rect x="75" y="60" width="6" height="6" fill="black" />
+                <rect x="40" y="75" width="6" height="6" fill="black" />
+                <rect x="60" y="75" width="6" height="6" fill="black" />
+                <rect x="80" y="75" width="6" height="6" fill="black" />
+                <rect x="45" y="88" width="6" height="6" fill="black" />
+                <rect x="65" y="88" width="6" height="6" fill="black" />
+                <rect x="85" y="88" width="6" height="6" fill="black" />
+              </svg>
+            </div>
+            <p className="text-[10px] text-slate-400 font-mono">Scan code with phone camera to join</p>
+          </div>
+
+          {/* Student Link Input & Buttons */}
+          <div className="space-y-2 text-left">
+            <label className="text-xs font-bold text-slate-700">Direct Student Quiz Link</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                className="flex-1 py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800"
+              />
+              <button
+                onClick={handleCopyLink}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shrink-0 cursor-pointer"
+              >
+                {copiedLink ? 'Copied!' : 'Copy Link'}
+              </button>
+            </div>
+          </div>
+
+          {/* WhatsApp & External Actions */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                `🎮 Join my MEXO Quiz!\n\n📌 Quiz: ${quiz.settings.title}\n🔑 Join Code: ${joinCode}\n🔗 Link: ${shareUrl}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Share via WhatsApp</span>
+            </a>
+
+            <button
+              onClick={() => window.open(shareUrl, '_blank')}
+              className="py-2.5 px-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs border border-purple-200 flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Open Student View</span>
+            </button>
+          </div>
+        </div>
+      </MexoModal>
     </div>
   );
 };

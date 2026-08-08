@@ -598,7 +598,10 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+            onClick={() => {
+              audioService.playNextQuestionSound();
+              setCurrentIndex(prev => Math.max(0, prev - 1));
+            }}
             disabled={currentIndex === 0 || quiz.settings?.attemptsLimit === 1}
             className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 text-xs font-bold cursor-pointer flex items-center space-x-1 border border-slate-700"
           >
@@ -616,7 +619,10 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => setCurrentIndex(prev => Math.min(sessionQuestions.length - 1, prev + 1))}
+              onClick={() => {
+                audioService.playNextQuestionSound();
+                setCurrentIndex(prev => Math.min(sessionQuestions.length - 1, prev + 1));
+              }}
               className="px-5 py-2.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer flex items-center space-x-1"
             >
               <span>Next</span>

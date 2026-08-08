@@ -83,6 +83,34 @@ class AudioService {
     } catch (e) {}
   }
 
+  // Play smooth futuristic swoosh / transition sound when moving to next question
+  public playNextQuestionSound() {
+    if (!this.isEnabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+
+      // Pitch sweep: 400Hz -> 880Hz (A5) over 120ms
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch (e) {}
+  }
+
   // Play crisp positive chime when answer is correct
   public playCorrectSound() {
     if (!this.isEnabled) return;

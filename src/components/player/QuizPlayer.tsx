@@ -253,7 +253,10 @@ export const QuizPlayer: React.FC = () => {
       {/* Fixed Bottom Navigation Bar */}
       <footer className="h-20 border-t border-slate-800 bg-slate-900 px-4 sm:px-8 flex items-center justify-between shrink-0 pb-[env(safe-area-inset-bottom)]">
         <button
-          onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+          onClick={() => {
+            audioService.playNextQuestionSound();
+            setCurrentIndex(prev => Math.max(0, prev - 1));
+          }}
           disabled={currentIndex === 0 || isSingleAttempt}
           className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 text-xs font-bold cursor-pointer flex items-center space-x-1 border border-slate-700"
         >
@@ -263,7 +266,10 @@ export const QuizPlayer: React.FC = () => {
 
         {currentIndex < quiz.questions.length - 1 ? (
           <button
-            onClick={() => setCurrentIndex(prev => Math.min(quiz.questions.length - 1, prev + 1))}
+            onClick={() => {
+              audioService.playNextQuestionSound();
+              setCurrentIndex(prev => Math.min(quiz.questions.length - 1, prev + 1));
+            }}
             className="px-5 py-2.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer flex items-center space-x-1"
           >
             <span>Next</span>
