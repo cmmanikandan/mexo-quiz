@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
-  useDocumentTitle('MEXO Quiz — Learn. Play. Compete. Improve.');
+  useDocumentTitle('MEXO Quiz');
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { switchRole } = useRole();

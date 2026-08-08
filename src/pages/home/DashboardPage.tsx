@@ -15,7 +15,7 @@ import {
 import { Quiz } from '../../types/quiz';
 
 export const DashboardPage: React.FC = () => {
-  useDocumentTitle('MEXO Quiz — Unified Interactive Learning Platform');
+  useDocumentTitle('MEXO Quiz');
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
