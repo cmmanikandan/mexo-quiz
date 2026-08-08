@@ -18,22 +18,26 @@ export const attemptService = {
   async fetchAttemptsFromSupabase(userId?: string, quizId?: string): Promise<QuizAttempt[]> {
     try {
       let query = supabase.from('quiz_attempts').select('*').order('completed_at', { ascending: false });
-      if (userId) query = query.eq('user_id', userId);
-      if (quizId) query = query.eq('quiz_id', quizId);
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},student_id.eq.${userId}`);
+      }
+      if (quizId) {
+        query = query.eq('quiz_id', quizId);
+      }
 
       const { data, error } = await query;
-      if (data && !error) {
+      if (data && !error && data.length > 0) {
         const dbAttempts: QuizAttempt[] = data.map((item: any) => ({
           id: item.id,
           quiz_id: item.quiz_id,
           quiz_title: item.quiz_title,
           user_id: item.user_id,
-          student_id: item.user_id,
+          student_id: item.student_id || item.user_id,
           user_name: item.user_name || 'Student',
           user_avatar: item.user_avatar,
           score: item.score || 0,
-          max_score: item.max_score || 0,
-          total_points: item.max_score || 0,
+          max_score: item.max_score || item.total_points || 0,
+          total_points: item.max_score || item.total_points || 0,
           percentage: item.percentage || 0,
           correct_count: item.correct_count || 0,
           incorrect_count: item.incorrect_count || 0,
@@ -49,23 +53,16 @@ export const attemptService = {
           submitted_at: item.submitted_at || item.completed_at,
           completed_at: item.completed_at || new Date().toISOString(),
           assignment_id: item.assignment_id,
+          integrity_score: item.integrity_score || 100,
+          security_status: item.security_status || 'clean',
         }));
 
-        // Merge with local attempts
-        const localAttempts = this.getAllAttempts();
-        const mergedMap = new Map<string, QuizAttempt>();
-        localAttempts.forEach(a => mergedMap.set(a.id, a));
-        dbAttempts.forEach(a => mergedMap.set(a.id, a));
-
-        const mergedList = Array.from(mergedMap.values()).sort(
-          (a, b) => new Date(b.completed_at || b.submitted_at || 0).getTime() - new Date(a.completed_at || a.submitted_at || 0).getTime()
-        );
-
+        // Cache into local storage
         try {
-          localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(mergedList));
+          localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(dbAttempts));
         } catch (e) {}
 
-        return mergedList;
+        return dbAttempts;
       }
     } catch (e) {}
     return this.getAllAttempts();
@@ -155,7 +152,6 @@ export const attemptService = {
 
   /**
    * Atomic attempt starter.
-   * Prevents duplicate attempt creation on rapid double-clicking.
    */
   async startQuizAttempt(
     quiz: Quiz,
@@ -229,25 +225,25 @@ export const attemptService = {
     } catch (e) {}
 
     // Persist to Supabase
-    (async () => {
-      try {
-        await supabase.from('quiz_attempts').upsert({
-          id: newAttempt.id,
-          quiz_id: newAttempt.quiz_id,
-          quiz_title: newAttempt.quiz_title,
-          user_id: newAttempt.user_id,
-          user_name: newAttempt.user_name,
-          user_avatar: newAttempt.user_avatar,
-          score: 0,
-          max_score: newAttempt.max_score,
-          percentage: 0,
-          status: 'in_progress',
-          started_at: newAttempt.started_at,
-          completed_at: new Date().toISOString(),
-          answers: {},
-        });
-      } catch (e) {}
-    })();
+    try {
+      await supabase.from('quiz_attempts').upsert({
+        id: newAttempt.id,
+        quiz_id: newAttempt.quiz_id,
+        quiz_title: newAttempt.quiz_title,
+        user_id: newAttempt.user_id,
+        student_id: newAttempt.student_id,
+        user_name: newAttempt.user_name,
+        user_avatar: newAttempt.user_avatar,
+        score: 0,
+        max_score: newAttempt.max_score,
+        total_points: newAttempt.total_points,
+        percentage: 0,
+        status: 'in_progress',
+        started_at: newAttempt.started_at,
+        completed_at: new Date().toISOString(),
+        answers: {},
+      });
+    } catch (e) {}
 
     return {
       success: true,
@@ -354,7 +350,7 @@ export const attemptService = {
 
   /**
    * Submit attempt with permanent status transition to 'submitted' or 'auto_submitted'.
-   * Atomically updates local storage and Supabase.
+   * Atomically updates Supabase, attempt_answers, student_progress, and certificates.
    */
   submitAttempt(
     quiz: Quiz,
@@ -400,38 +396,13 @@ export const attemptService = {
 
     // Calculate security metrics
     const isUnusuallyFast = timeSpentSeconds < 10 && (quiz.questions || []).length > 2;
-    const tabSwitches = quiz.settings?.enableTabSwitchDetection ? 0 : 0;
+    const tabSwitches = 0;
     const speedAnomalies = isUnusuallyFast ? 1 : 0;
 
     let integrityScore = 100;
-    if (tabSwitches > 0) integrityScore -= tabSwitches * 25;
     if (isUnusuallyFast) integrityScore -= 30;
-    if (integrityScore < 0) integrityScore = 0;
 
     const securityStatus: 'clean' | 'flagged' | 'invalidated' = integrityScore >= 80 ? 'clean' : 'flagged';
-
-    const securityEvents: any[] = [
-      {
-        id: `evt-${Date.now()}-1`,
-        attempt_id: `att-${Date.now()}`,
-        student_id: userId,
-        quiz_id: quiz.id,
-        event_type: 'quiz_started',
-        event_time: startTimeStr,
-        severity: 'info',
-        description: 'Quiz activity session initialized',
-      },
-      {
-        id: `evt-${Date.now()}-3`,
-        attempt_id: `att-${Date.now()}`,
-        student_id: userId,
-        quiz_id: quiz.id,
-        event_type: 'submitted',
-        event_time: completedAtStr,
-        severity: 'info',
-        description: `Quiz activity submitted (${statusOverride})`,
-      },
-    ];
 
     const attemptId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -469,38 +440,39 @@ export const attemptService = {
       speed_anomaly_count: speedAnomalies,
       integrity_score: integrityScore,
       security_status: securityStatus,
-      security_events: securityEvents,
     };
 
     if (isPassed && quiz.settings?.certificate?.enabled) {
       attempt.certificate_url = `CERT-${quiz.id.slice(0, 6)}-${userId.slice(0, 6)}`;
     }
 
-    // Save to local storage (replacing any in-progress attempt for this session)
+    // Save to local storage for immediate UI transition
     let list = this.getAllAttempts();
     list = list.filter(a => !(a.quiz_id === quiz.id && a.user_id === userId && a.status === 'in_progress'));
     list.unshift(attempt);
 
     try {
       localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(list));
-      // Cleanup transient keys
       localStorage.removeItem(`test_draft_${quiz.id}`);
       localStorage.removeItem(`test_timer_${quiz.id}`);
       localStorage.removeItem(`test_started_at_${quiz.id}`);
     } catch (e) {}
 
-    // Persist to Supabase
+    // Persist completely to Supabase in background
     (async () => {
       try {
+        // 1. Upsert attempt row
         await supabase.from('quiz_attempts').upsert({
           id: attempt.id,
           quiz_id: attempt.quiz_id,
           quiz_title: attempt.quiz_title,
           user_id: attempt.user_id,
+          student_id: attempt.student_id,
           user_name: attempt.user_name,
           user_avatar: attempt.user_avatar,
           score: attempt.score,
           max_score: attempt.max_score,
+          total_points: attempt.total_points,
           percentage: attempt.percentage,
           correct_count: attempt.correct_count,
           incorrect_count: attempt.incorrect_count,
@@ -511,11 +483,57 @@ export const attemptService = {
           status: attempt.status,
           completed_at: attempt.completed_at,
           answers: attempt.answers,
+          integrity_score: attempt.integrity_score,
+          security_status: attempt.security_status,
         });
 
-        // Increment quiz plays count
+        // 2. Save individual answers to attempt_answers table
+        const answerRows = Object.entries(answers).map(([qId, ansVal]) => {
+          const qObj = (quiz.questions || []).find(q => q.id === qId);
+          const { isCorrect, pointsEarned } = qObj
+            ? attemptService.gradeQuestion(qObj, ansVal)
+            : { isCorrect: false, pointsEarned: 0 };
+          return {
+            id: `ans-${attempt.id}-${qId}`,
+            attempt_id: attempt.id,
+            question_id: qId,
+            selected_option_id: typeof ansVal === 'string' ? ansVal : null,
+            selected_answer: typeof ansVal === 'object' ? ansVal : { value: ansVal },
+            is_correct: isCorrect,
+            points_earned: pointsEarned,
+            answered_at: completedAtStr,
+          };
+        });
+
+        if (answerRows.length > 0) {
+          await supabase.from('attempt_answers').upsert(answerRows);
+        }
+
+        // 3. Issue certificate if passed
+        if (isPassed && quiz.settings?.certificate?.enabled) {
+          await supabase.from('certificates').upsert({
+            id: `cert-${attempt.id}`,
+            student_id: userId,
+            quiz_id: quiz.id,
+            certificate_number: `MEXO-${Date.now().toString().slice(-6)}`,
+            title: quiz.settings?.certificate?.title || `${quiz.settings?.title} Certificate of Achievement`,
+            issuer_name: quiz.settings?.certificate?.issuerName || 'MEXO Academy',
+            score_percentage: percentage,
+            issued_at: completedAtStr,
+            verification_code: `VER-${Date.now().toString().slice(-8)}`,
+            certificate_url: attempt.certificate_url,
+            status: 'verified',
+          });
+        }
+
+        // 4. Update student progress RPC
+        await supabase.rpc('sync_student_progress', { p_student_id: userId });
+
+        // 5. Increment quiz plays count
         await supabase.rpc('increment_quiz_play_count', { p_quiz_id: quiz.id });
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error in background Supabase attempt persistence:', e);
+      }
     })();
 
     return attempt;

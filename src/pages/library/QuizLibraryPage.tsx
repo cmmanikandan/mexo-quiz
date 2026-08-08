@@ -61,13 +61,14 @@ export const QuizLibraryPage: React.FC = () => {
 
   // Filter & Sort Logic based strictly on real user resources
   const myResources = useMemo(() => {
-    return quizzes.filter(q => q.creator_id === currentUserId || q.creator_name === currentUserName);
-  }, [quizzes, currentUserId, currentUserName]);
+    if (quizzes.length === 0) return [];
+    return quizzes;
+  }, [quizzes]);
 
   // Shared resources created by others
   const sharedResources = useMemo(() => {
-    return quizzes.filter(q => q.creator_id !== currentUserId && q.creator_name !== currentUserName && q.is_public);
-  }, [quizzes, currentUserId, currentUserName]);
+    return quizzes.filter(q => q.is_public);
+  }, [quizzes]);
 
   // Compute counts for tab badges dynamically from real data
   const tabCounts = useMemo(() => {
