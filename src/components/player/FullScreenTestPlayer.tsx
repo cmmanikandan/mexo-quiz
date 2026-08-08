@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Quiz, Question } from '../../types/quiz';
 import { attemptService } from '../../services/attemptService';
+import { audioService } from '../../utils/audioService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { QuestionRenderers } from './QuestionRenderers';
@@ -27,6 +28,7 @@ import {
   HelpCircle,
   Sparkles,
   ShieldAlert,
+  Lock,
 } from 'lucide-react';
 
 interface FullScreenTestPlayerProps {
@@ -190,6 +192,9 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
     const timeSpent = durationSeconds - secondsRemaining;
     const attempt = attemptService.submitAttempt(quiz, userId, userName, userAvatar, userAnswers, Math.max(1, timeSpent));
 
+    // Audio Victory Fanfare
+    audioService.playVictoryFanfare();
+
     try {
       localStorage.removeItem(`test_draft_${quiz.id}`);
       localStorage.removeItem(`test_timer_${quiz.id}`);
@@ -209,6 +214,63 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const answeredCount = Object.keys(userAnswers).filter(k => userAnswers[k] !== undefined && userAnswers[k] !== '').length;
   const unansweredCount = Math.max(0, quiz.questions.length - answeredCount);
   const markedCount = Object.values(markedForReview).filter(Boolean).length;
+
+  const currentUserId = profile?.id || user?.id || 'guest';
+  const pastAttempts = attemptService.getUserQuizAttempts(currentUserId, quiz.id);
+  const isAttemptLimitReached =
+    !isTeacherPreview &&
+    quiz.settings?.attemptsLimit &&
+    quiz.settings.attemptsLimit > 0 &&
+    pastAttempts.length >= quiz.settings.attemptsLimit;
+
+  if (isAttemptLimitReached) {
+    const lastAttempt = pastAttempts[0];
+    return (
+      <div className="fixed inset-0 bg-slate-950 text-slate-100 z-50 flex items-center justify-center p-4 font-sans select-none">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
+          <div className="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-white">Maximum Attempt Limit Reached</h2>
+            <p className="text-xs text-slate-400">
+              You have used all allowed attempts ({pastAttempts.length} of {quiz.settings?.attemptsLimit} attempt used).
+            </p>
+          </div>
+
+          {lastAttempt && (
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500">Your Last Submission Score</span>
+              <p className="text-3xl font-black text-purple-400 font-mono">
+                {lastAttempt.score} / {lastAttempt.max_score} ({lastAttempt.percentage}%)
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Completed on {new Date(lastAttempt.completed_at).toLocaleString()}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-3 pt-2">
+            {lastAttempt && (
+              <button
+                onClick={() => navigate(`/result/${lastAttempt.id}`, { state: { attempt: lastAttempt, quiz } })}
+                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+              >
+                View Submitted Results
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/library')}
+              className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold text-xs transition-all cursor-pointer"
+            >
+              Back to Library
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-950 text-slate-100 z-50 flex flex-col select-none overflow-hidden font-sans">
@@ -363,6 +425,10 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
                 userAnswer={userAnswers[currentQuestion.id]}
                 onChangeAnswer={handleSelectOption}
                 isDarkTheme={true}
+                showImmediateFeedback={
+                  !!quiz.settings?.showCorrectAnswerImmediately ||
+                  !!quiz.settings?.showAnswersAfterQuiz
+                }
               />
             </div>
           </div>
