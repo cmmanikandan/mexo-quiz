@@ -24,7 +24,7 @@ export const ProfilePage: React.FC = () => {
   useDocumentTitle('User Profile & Capabilities — MEXO Quiz');
   const navigate = useNavigate();
   const { profile, user, signOut } = useAuth();
-  const { currentMode, toggleRoleMode } = useRole();
+  const { activeRole, switchRole } = useRole();
 
   const currentUserId = profile?.id || user?.id || '';
   const attempts = attemptService.getUserAttempts(currentUserId);
@@ -75,14 +75,14 @@ export const ProfilePage: React.FC = () => {
         {/* Mode Switcher */}
         <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl border border-white/20 text-center space-y-2 shrink-0">
           <p className="text-[11px] font-extrabold uppercase text-purple-200 tracking-wider">Current Account Mode</p>
-          <p className="text-lg font-black capitalize text-yellow-300">{currentMode} Mode</p>
+          <p className="text-lg font-black capitalize text-yellow-300">{activeRole} Mode</p>
 
           <button
-            onClick={toggleRoleMode}
+            onClick={() => switchRole(activeRole === 'student' ? 'teacher' : 'student')}
             className="w-full px-4 py-2 rounded-2xl bg-white text-[#7C3AED] hover:bg-purple-50 font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Switch to {currentMode === 'student' ? 'Teacher' : 'Student'}</span>
+            <span>Switch to {activeRole === 'student' ? 'Teacher' : 'Student'}</span>
           </button>
         </div>
       </div>
