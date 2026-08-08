@@ -10,7 +10,29 @@ import { JoinLiveQuizModal } from '../../components/live/JoinLiveQuizModal';
 import { CreateModal } from '../../components/create/CreateModal';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import {
-  Play, Plus, Trophy, BookOpen, Flame, Award, Clock, Star, Zap, ArrowRight, CheckCircle2, Users, Layers, BarChart3, HelpCircle, FileText, Compass, Sparkles, Radio, Target, Search, PlusCircle, Bookmark
+  Play,
+  Plus,
+  Trophy,
+  BookOpen,
+  Flame,
+  Award,
+  Clock,
+  Star,
+  Zap,
+  ArrowRight,
+  CheckCircle2,
+  Users,
+  Layers,
+  BarChart3,
+  HelpCircle,
+  FileText,
+  Compass,
+  Sparkles,
+  Radio,
+  Target,
+  Search,
+  PlusCircle,
+  Bookmark,
 } from 'lucide-react';
 import { Quiz } from '../../types/quiz';
 
@@ -24,20 +46,23 @@ export const DashboardPage: React.FC = () => {
   const [assignments] = useState(() => classService.getAssignments());
   const [classes] = useState(() => classService.getClasses());
   const [sessions] = useState(() => liveSessionService.getLocalSessions());
-  
+
   const [showLiveModal, setShowLiveModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const displayName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : user?.email || 'MEXO Scholar';
+  const displayName = profile
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username
+    : user?.email?.split('@')[0] || 'MEXO User';
 
   // Dynamic filter: Has user created content?
-  const myCreatedActivities = quizzes.filter(q => q.creator_id === (profile?.id || user?.id) || q.creator_name === displayName);
+  const myCreatedActivities = quizzes.filter(
+    q => q.creator_id === (profile?.id || user?.id) || q.creator_name === displayName
+  );
   const hasCreatedContent = myCreatedActivities.length > 0;
 
   // Dynamic filter: Has user enrolled or assigned items?
   const myAttempts = attempts.filter(a => a.user_id === (profile?.id || user?.id));
-  const hasStudentHistory = myAttempts.length > 0 || assignments.length > 0;
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
@@ -50,344 +75,209 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 select-none">
-      {/* Header Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="space-y-3 z-10 text-center md:text-left">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-extrabold uppercase tracking-wider">
+    <div className="p-3.5 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 select-none box-border overflow-hidden">
+      {/* Sleek, Compact Hero Banner */}
+      <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 text-white shadow-xl relative overflow-hidden flex flex-col justify-between space-y-4 box-border">
+        {/* Top Streak Pill */}
+        <div className="flex items-center justify-between z-10">
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-extrabold uppercase tracking-wider text-white">
             <span>🔥 {profile?.streak ?? (myAttempts.length > 0 ? 1 : 0)} Day Streak</span>
-            <span>·</span>
-            <span>Level {profile?.level ?? (myAttempts.length > 0 ? 2 : 1)} Scholar</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
+          <span className="text-[11px] font-mono font-extrabold text-purple-200">
+            MEXO Platform
+          </span>
+        </div>
+
+        {/* Title & Description */}
+        <div className="space-y-1.5 z-10 text-left">
+          <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight break-words">
             {greeting}, {displayName}!
           </h1>
 
-          <p className="text-xs sm:text-sm text-purple-100 max-w-xl">
-            Create interactive quizzes, host live multiplayer sessions, join classes, and track your personal learning progress with one unified MEXO account.
+          <p className="text-xs sm:text-sm text-purple-100 max-w-xl leading-relaxed">
+            Create interactive quizzes, host live multiplayer sessions, join classes, and track your learning progress.
           </p>
-
-          {/* Header Action Buttons */}
-          <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-5 py-2.5 rounded-2xl bg-white text-[#7C3AED] font-extrabold text-xs shadow-md hover:bg-purple-50 transition-all cursor-pointer flex items-center space-x-2"
-            >
-              <PlusCircle className="w-4 h-4 text-[#7C3AED]" />
-              <span>+ Create Resource</span>
-            </button>
-
-            <button
-              onClick={() => setShowLiveModal(true)}
-              className="px-5 py-2.5 rounded-2xl bg-slate-900/90 text-white font-extrabold text-xs shadow-md hover:bg-slate-900 transition-all cursor-pointer flex items-center space-x-2 border border-white/10"
-            >
-              <Zap className="w-4 h-4 text-yellow-300 animate-pulse" />
-              <span>Join Live Quiz</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/discover')}
-              className="px-5 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white border border-white/30 font-extrabold text-xs shadow-md hover:bg-white/30 transition-all cursor-pointer flex items-center space-x-2"
-            >
-              <Compass className="w-4 h-4" />
-              <span>Discover Activities</span>
-            </button>
-          </div>
         </div>
 
-        {/* User Rank Card */}
-        <div className="z-10 bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/20 text-center space-y-2 shrink-0">
-          <div className="w-16 h-16 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-3xl shadow-xl mx-auto">
-            🏆
-          </div>
-          <p className="text-xs font-bold uppercase tracking-wider text-amber-200">Scholar Rank</p>
-          <p className="text-2xl font-black text-white">Level {profile?.level || (attempts.length > 0 ? 2 : 1)}</p>
-          <p className="text-[10px] text-purple-200 font-mono">{profile?.xp || (attempts.length * 50)} Total XP</p>
-        </div>
-      </div>
-
-      {/* Quick Search Bar */}
-      <form onSubmit={handleGlobalSearch} className="relative flex items-center">
-        <Search className="w-5 h-5 absolute left-4 text-slate-400 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search MEXO Quiz resources, topics, public quizzes, classes, or reports..."
-          className="w-full pl-12 pr-28 py-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm focus:border-[#7C3AED] focus:ring-4 focus:ring-purple-100 text-sm font-medium text-slate-900 outline-hidden"
-        />
-        <button
-          type="submit"
-          className="absolute right-2 px-4 py-2 rounded-xl bg-[#7C3AED] text-white text-xs font-bold hover:bg-purple-700 transition-colors cursor-pointer"
-        >
-          Search
-        </button>
-      </form>
-
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-purple-50 text-[#7C3AED]">
-            <Flame className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-extrabold uppercase">Daily Study Streak</p>
-            <p className="text-sm font-bold text-slate-900">{profile?.streak ?? (myAttempts.length > 0 ? 1 : 0)} Day{(profile?.streak ?? 1) !== 1 ? 's' : ''} Active</p>
-            <span className="text-[10px] font-bold text-[#7C3AED]">{(profile?.streak ?? 0) >= 3 ? 'Double XP Bonus Active 🔥' : 'Keep studying to build streak'}</span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-blue-50 text-blue-600">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-extrabold uppercase">My Library</p>
-            <p className="text-sm font-bold text-slate-900">{myCreatedActivities.length} Item{myCreatedActivities.length !== 1 ? 's' : ''} Created</p>
-            <span className="text-[10px] font-bold text-blue-600">Quizzes, Lessons & Decks</span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-extrabold uppercase">Completed Quizzes</p>
-            <p className="text-sm font-bold text-slate-900">{myAttempts.length} Submission{myAttempts.length !== 1 ? 's' : ''}</p>
-            <span className="text-[10px] font-bold text-emerald-600">
-              {myAttempts.length > 0
-                ? `${Math.round(myAttempts.reduce((a, c) => a + c.percentage, 0) / myAttempts.length)}% Avg Accuracy`
-                : 'Start your first quiz!'}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-amber-50 text-amber-600">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-500 font-extrabold uppercase">My Classrooms</p>
-            <p className="text-sm font-bold text-slate-900">{classes.length} Enrolled / Taught</p>
-            <span className="text-[10px] font-bold text-amber-600">Unified Account</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Creator Section: My Created Content */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-5 h-5 text-[#7C3AED]" />
-            <h2 className="text-lg font-bold text-slate-900">
-              {hasCreatedContent ? 'My Created Activities' : 'Create Your First Learning Resource'}
-            </h2>
-          </div>
+        {/* Action Buttons Row */}
+        <div className="pt-1 z-10 flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => navigate('/library')}
-            className="text-xs font-bold text-[#7C3AED] hover:underline flex items-center space-x-1"
+            onClick={() => setShowCreateModal(true)}
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-white text-[#7C3AED] font-extrabold text-xs shadow-md hover:bg-purple-50 transition-all cursor-pointer flex items-center justify-center space-x-1.5 shrink-0"
           >
-            <span>My Library</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <PlusCircle className="w-4 h-4 text-[#7C3AED]" />
+            <span>+ Create Resource</span>
           </button>
-        </div>
 
-        {!hasCreatedContent ? (
-          /* Smart Empty State for Creator */
-          <div className="p-8 rounded-3xl bg-white border border-dashed border-purple-200 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-[#7C3AED] flex items-center justify-center mx-auto">
-              <PlusCircle className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-extrabold text-slate-900">No created activities yet</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              You haven't created any quizzes, lessons, or flashcards deck yet. Use the MEXO builder or MEXO AI to generate content in seconds.
-            </p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] text-white text-xs font-extrabold shadow-md hover:bg-purple-700 transition-all cursor-pointer inline-flex items-center space-x-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Create Your First Quiz</span>
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {myCreatedActivities.map(q => (
-              <div
-                key={q.id}
-                onClick={() => navigate(`/builder/${q.id}`)}
-                className="bg-white rounded-3xl border border-slate-200 p-5 hover:shadow-md hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] uppercase">
-                      {q.resource_type || 'quiz'}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">{q.questions.length} Questions</span>
-                  </div>
-                  <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-[#7C3AED] transition-colors line-clamp-1">
-                    {q.settings.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 line-clamp-2">{q.settings.description}</p>
-                </div>
+          <button
+            onClick={() => setShowLiveModal(true)}
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-slate-900/90 text-white font-extrabold text-xs shadow-md hover:bg-slate-900 transition-all cursor-pointer flex items-center justify-center space-x-1.5 border border-white/10 shrink-0"
+          >
+            <Zap className="w-4 h-4 text-yellow-300 animate-pulse" />
+            <span>Join Live Quiz</span>
+          </button>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 mt-4">
-                  <span>{q.plays_count} plays</span>
-                  <span className="text-[#7C3AED] hover:underline">Edit Activity →</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Student Section: Assigned Homework & Learning Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Assignments */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-2">
-              <FileText className="w-5 h-5 text-[#7C3AED]" />
-              <h3 className="text-sm font-bold text-slate-900">Your Assignments & Homework</h3>
-            </div>
-            <button onClick={() => navigate('/assignments')} className="text-xs font-bold text-[#7C3AED] hover:underline">
-              View All
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {assignments.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6">No pending homework assignments.</p>
-            ) : (
-              assignments.map(asg => (
-                <div key={asg.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900">{asg.quiz_title}</p>
-                    <p className="text-[11px] text-slate-500">
-                      {asg.class_name} • Due {new Date(asg.due_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/quiz/${asg.quiz_id}`)}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Start Activity
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* My Classes */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-2">
-              <Users className="w-5 h-5 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-900">My Classes</h3>
-            </div>
-            <button onClick={() => navigate('/classes')} className="text-xs font-bold text-[#7C3AED] hover:underline">
-              Manage Classes
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {classes.map(cls => (
-              <div
-                key={cls.id}
-                onClick={() => navigate(`/classes/${cls.id}`)}
-                className="p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-purple-50/50 hover:border-purple-200 transition-all cursor-pointer flex items-center justify-between"
-              >
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono">
-                      {cls.code}
-                    </span>
-                    <h4 className="text-xs font-bold text-slate-900">{cls.name}</h4>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Teacher: {cls.teacher_name} • {cls.students_count} Students
-                  </p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Featured Public Discover Resources */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Featured Discover Activities</h2>
-            <p className="text-xs text-slate-500">Explore public resources created by teachers and experts.</p>
-          </div>
           <button
             onClick={() => navigate('/discover')}
-            className="text-xs font-bold text-[#7C3AED] hover:underline flex items-center space-x-1"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white border border-white/30 font-extrabold text-xs shadow-md hover:bg-white/30 transition-all cursor-pointer flex items-center justify-center space-x-1.5 shrink-0"
           >
-            <span>Explore All</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <Compass className="w-4 h-4" />
+            <span>Discover Activities</span>
           </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {quizzes.filter(q => q.is_public).slice(0, 3).map(q => (
-            <div
-              key={q.id}
-              onClick={() => navigate(`/quiz/${q.id}`)}
-              className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
-            >
-              <div>
-                <div className="h-40 bg-slate-100 relative overflow-hidden">
-                  <img
-                    src={q.settings.coverImageUrl || 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600'}
-                    alt={q.settings.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold uppercase">
-                    {q.settings.subject}
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-2">
-                  <div className="flex items-center space-x-1.5 text-amber-500 text-xs font-bold">
-                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span>{q.rating_avg}</span>
-                    <span className="text-slate-400 font-normal">({q.rating_count}) • {q.plays_count} plays</span>
-                  </div>
-
-                  <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-[#7C3AED] transition-colors line-clamp-2">
-                    {q.settings.title}
-                  </h3>
-
-                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                    {q.settings.description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-5 pt-0 flex items-center justify-between border-t border-slate-100 mt-4">
-                <div className="flex items-center space-x-2">
-                  <MexoAvatar name={q.creator_name} src={q.creator_avatar} size="xs" />
-                  <span className="text-xs text-slate-600 font-semibold truncate max-w-[120px]">{q.creator_name}</span>
-                </div>
-                <span className="text-xs font-bold text-[#7C3AED] flex items-center space-x-1">
-                  <span>Play</span>
-                  <Play className="w-3.5 h-3.5 fill-[#7C3AED]" />
-                </span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
-      <JoinLiveQuizModal isOpen={showLiveModal} onClose={() => setShowLiveModal(false)} />
-      <CreateModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
+      {/* Global Search Bar */}
+      <form onSubmit={handleGlobalSearch} className="w-full">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search quizzes, assessments, lessons, topics or subjects..."
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-900 focus:border-[#7C3AED] focus:ring-2 focus:ring-purple-100 shadow-sm outline-hidden box-border"
+          />
+        </div>
+      </form>
+
+      {/* Quick KPI Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div
+          onClick={() => navigate('/library')}
+          className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-1"
+        >
+          <div className="flex items-center justify-between text-purple-600">
+            <BookOpen className="w-5 h-5" />
+            <span className="text-xs font-mono font-black">{myCreatedActivities.length}</span>
+          </div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase">My Library</p>
+          <p className="text-xs font-black text-slate-900">Created Items</p>
+        </div>
+
+        <div
+          onClick={() => navigate('/assignments')}
+          className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-1"
+        >
+          <div className="flex items-center justify-between text-blue-600">
+            <FileText className="w-5 h-5" />
+            <span className="text-xs font-mono font-black">{assignments.length}</span>
+          </div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase">Assignments</p>
+          <p className="text-xs font-black text-slate-900">Homework Due</p>
+        </div>
+
+        <div
+          onClick={() => navigate('/sessions')}
+          className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-1"
+        >
+          <div className="flex items-center justify-between text-rose-600">
+            <Radio className="w-5 h-5" />
+            <span className="text-xs font-mono font-black">{sessions.length}</span>
+          </div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase">Live Rooms</p>
+          <p className="text-xs font-black text-slate-900">Active Lobbies</p>
+        </div>
+
+        <div
+          onClick={() => navigate('/progress')}
+          className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-1"
+        >
+          <div className="flex items-center justify-between text-emerald-600">
+            <Trophy className="w-5 h-5" />
+            <span className="text-xs font-mono font-black">{myAttempts.length}</span>
+          </div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase">Accuracy</p>
+          <p className="text-xs font-black text-slate-900">Progress Stats</p>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Columns: Quizzes & Activities Feed */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-[#7C3AED]" />
+                <h3 className="text-sm font-extrabold text-slate-900">Featured Learning Resources</h3>
+              </div>
+              <button
+                onClick={() => navigate('/discover')}
+                className="text-xs font-bold text-[#7C3AED] hover:underline cursor-pointer flex items-center space-x-1"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {quizzes.slice(0, 4).map(quiz => (
+                <div
+                  key={quiz.id}
+                  onClick={() => navigate(`/library/${quiz.id}`)}
+                  className="p-4 rounded-2xl border border-slate-200 hover:border-purple-300 hover:shadow-md transition-all bg-white cursor-pointer space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] text-[10px] font-black uppercase">
+                        {quiz.resource_type || 'Quiz'}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 font-mono">
+                        {quiz.questions.length} Qs
+                      </span>
+                    </div>
+
+                    <h4 className="text-sm font-extrabold text-slate-900 line-clamp-1">{quiz.settings.title}</h4>
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {quiz.settings.description || 'Interactive learning resource.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-600 text-[11px]">{quiz.settings.subject}</span>
+                    <span className="text-[#7C3AED] font-extrabold flex items-center space-x-1">
+                      <span>Start</span>
+                      <Play className="w-3 h-3 fill-[#7C3AED]" />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right 1 Column: Quick Actions & Live Session Banner */}
+        <div className="space-y-6">
+          <div className="p-6 rounded-3xl bg-slate-900 text-white shadow-xl space-y-4">
+            <div className="flex items-center space-x-2 text-yellow-400 text-xs font-black uppercase">
+              <Zap className="w-4 h-4 animate-pulse" />
+              <span>Live Quiz Room</span>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white">Have a 6-Digit Code?</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Join a live multiplayer quiz session hosted by your teacher or peer.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowLiveModal(true)}
+              className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer"
+            >
+              Enter Join Code ⚡
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showLiveModal && (
+        <JoinLiveQuizModal isOpen={showLiveModal} onClose={() => setShowLiveModal(false)} />
+      )}
+
+      {showCreateModal && (
+        <CreateModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
+      )}
     </div>
   );
 };
-
