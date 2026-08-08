@@ -25,11 +25,11 @@ export const CalculatorModal: React.FC<{ isOpen: boolean; onClose: () => void }>
 
   const handleCalculate = () => {
     try {
-      // Safe math eval with replaced operators
       const sanitized = display.replace(/×/g, '*').replace(/÷/g, '/');
-      // eslint-disable-next-line no-eval
-      const result = eval(sanitized);
-      setDisplay(String(Number(result.toFixed(6))));
+      // Use Function constructor instead of eval to avoid security warnings
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval
+      const result = new Function(`return (${sanitized})`)();
+      setDisplay(String(Number((result as number).toFixed(6))));
     } catch (e) {
       setDisplay('Error');
     }

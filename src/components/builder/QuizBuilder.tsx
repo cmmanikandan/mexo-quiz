@@ -41,11 +41,12 @@ export const QuizBuilder: React.FC = () => {
           {
             id: 'q-initial-1',
             type: 'multiple_choice',
-            title: 'Sample Question 1: Enter your question title here...',
+            title: '',
             options: [
-              { id: 'o1', text: 'Option A (Correct)', isCorrect: true, explanation: 'Correct choice explanation.' },
-              { id: 'o2', text: 'Option B', isCorrect: false },
-              { id: 'o3', text: 'Option C', isCorrect: false },
+              { id: 'o1', text: '', isCorrect: true },
+              { id: 'o2', text: '', isCorrect: false },
+              { id: 'o3', text: '', isCorrect: false },
+              { id: 'o4', text: '', isCorrect: false },
             ],
             points: 10,
             isRequired: true,
@@ -68,8 +69,9 @@ export const QuizBuilder: React.FC = () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       settings: {
-        title: aiState?.aiMetadata?.topic ? `Quiz: ${aiState.aiMetadata.topic}` : `Untitled ${resourceTypeParam.toUpperCase()}`,
-        description: 'Interactive learning resource description and instructions...',
+        title: aiState?.aiMetadata?.topic ? `${aiState.aiMetadata.topic}` : '',
+        description: '',
+        instructions: '',
         subject: aiState?.aiMetadata?.subject || 'General',
         difficulty: aiState?.aiMetadata?.difficulty || 'medium',
         language: 'English',
@@ -178,7 +180,7 @@ export const QuizBuilder: React.FC = () => {
 
   const handlePreview = () => {
     handleSaveQuiz('draft');
-    navigate(`/quiz/${quiz.id}`);
+    navigate(`/quiz/${quiz.id}?preview=true`);
   };
 
   return (
@@ -198,6 +200,7 @@ export const QuizBuilder: React.FC = () => {
               type="text"
               value={quiz.settings.title}
               onChange={e => handleTitleChange(e.target.value)}
+              placeholder={`Untitled ${resourceTypeParam.charAt(0).toUpperCase() + resourceTypeParam.slice(1)}`}
               className="text-base font-extrabold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#7C3AED] focus:bg-white px-1.5 py-0.5 rounded-md outline-hidden transition-all"
             />
             <p className="text-[11px] text-slate-400 font-semibold px-1.5 flex items-center space-x-2">
@@ -340,7 +343,43 @@ export const QuizBuilder: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Question Editor */}
+                {/* Question Title Textarea */}
+                <textarea
+                  rows={2}
+                  value={q.title}
+                  onChange={e => handleUpdateQuestion(index, { ...q, title: e.target.value })}
+                  placeholder="Type your question here..."
+                  className="w-full py-3 px-4 text-sm font-semibold text-slate-900 rounded-2xl bg-slate-50 border border-slate-200 focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-purple-100 resize-none transition-all placeholder:text-slate-400"
+                />
+
+                {/* Points input */}
+                <div className="flex items-center space-x-3">
+                  <label className="text-xs font-bold text-slate-600">Points:</label>
+                  <input
+                    type="number"
+                    value={q.points}
+                    min={0}
+                    max={100}
+                    onChange={e => handleUpdateQuestion(index, { ...q, points: parseInt(e.target.value) || 0 })}
+                    className="w-16 px-2 py-1 text-xs font-bold text-slate-900 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-[#7C3AED]"
+                  />
+                  <label className="text-xs font-bold text-slate-600 ml-3">Time Limit (sec):</label>
+                  <select
+                    value={q.timeLimitSeconds || 0}
+                    onChange={e => handleUpdateQuestion(index, { ...q, timeLimitSeconds: parseInt(e.target.value) || undefined })}
+                    className="px-2 py-1 text-xs font-bold text-slate-900 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:border-[#7C3AED] cursor-pointer"
+                  >
+                    <option value={0}>No limit</option>
+                    <option value={15}>15s</option>
+                    <option value={30}>30s</option>
+                    <option value={45}>45s</option>
+                    <option value={60}>60s</option>
+                    <option value={90}>90s</option>
+                    <option value={120}>2 min</option>
+                  </select>
+                </div>
+
+                {/* Question Type-specific Answer Editor */}
                 <QuestionTypeEditors question={q} onChange={updated => handleUpdateQuestion(index, updated)} />
               </div>
             ))}

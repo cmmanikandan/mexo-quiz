@@ -35,7 +35,8 @@ export const QuizLibraryPage: React.FC = () => {
   const currentUserName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : user?.email || 'MEXO User';
 
   const filteredQuizzes = useMemo(() => {
-    let list = quizzes;
+    // My library: only quizzes created by current user
+    let list = quizzes.filter(q => q.creator_id === currentUserId);
 
     if (activeTab === 'drafts') {
       list = list.filter(q => q.settings.status === 'draft');
@@ -49,13 +50,13 @@ export const QuizLibraryPage: React.FC = () => {
       const q = searchQuery.toLowerCase();
       list = list.filter(item =>
         item.settings.title.toLowerCase().includes(q) ||
-        item.settings.description.toLowerCase().includes(q) ||
+        (item.settings.description || '').toLowerCase().includes(q) ||
         (item.settings.tags || []).some(t => t.toLowerCase().includes(q))
       );
     }
 
     return list;
-  }, [quizzes, activeTab, searchQuery]);
+  }, [quizzes, activeTab, searchQuery, currentUserId]);
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
