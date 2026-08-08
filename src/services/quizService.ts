@@ -24,7 +24,7 @@ export const quizService = {
         .order('created_at', { ascending: false });
 
       if (data && !error) {
-        const mapped: Quiz[] = data.map(item => ({
+        const dbQuizzes: Quiz[] = data.map(item => ({
           id: item.id,
           creator_id: item.creator_id,
           creator_name: item.creator_name,
@@ -40,8 +40,24 @@ export const quizService = {
           updated_at: item.updated_at,
         }));
 
-        localStorage.setItem(LOCAL_QUIZZES_KEY, JSON.stringify(mapped));
-        return mapped;
+        // Merge DB quizzes with local storage quizzes so no created quiz is ever lost
+        const localQuizzes = this.getAllQuizzes();
+        const mergedMap = new Map<string, Quiz>();
+
+        // Add local quizzes first
+        localQuizzes.forEach(q => mergedMap.set(q.id, q));
+        // Overwrite/enrich with database quizzes
+        dbQuizzes.forEach(q => mergedMap.set(q.id, q));
+
+        const mergedList = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        );
+
+        try {
+          localStorage.setItem(LOCAL_QUIZZES_KEY, JSON.stringify(mergedList));
+        } catch (e) {}
+
+        return mergedList;
       }
     } catch (e) {}
     return this.getAllQuizzes();

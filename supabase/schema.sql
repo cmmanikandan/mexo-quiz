@@ -287,7 +287,7 @@ DROP POLICY IF EXISTS "Read Public Quizzes" ON public.quizzes;
 DROP POLICY IF EXISTS "Insert Own Quiz" ON public.quizzes;
 DROP POLICY IF EXISTS "Update Own Quiz" ON public.quizzes;
 DROP POLICY IF EXISTS "Delete Own Quiz" ON public.quizzes;
-CREATE POLICY "Read Public Quizzes" ON public.quizzes FOR SELECT USING (is_public = true OR creator_id = auth.uid() OR auth.uid() IS NOT NULL);
+CREATE POLICY "Read Public Quizzes" ON public.quizzes FOR SELECT USING (true);
 CREATE POLICY "Insert Own Quiz" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = creator_id OR creator_id IS NULL);
 CREATE POLICY "Update Own Quiz" ON public.quizzes FOR UPDATE USING (auth.uid() = creator_id OR creator_id IS NULL);
 CREATE POLICY "Delete Own Quiz" ON public.quizzes FOR DELETE USING (auth.uid() = creator_id OR creator_id IS NULL);

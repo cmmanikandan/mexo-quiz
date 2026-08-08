@@ -416,12 +416,24 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 <span>Assign Class</span>
               </button>
 
+              <a
+                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                  `🎮 Join my MEXO Quiz!\n\n📌 Quiz: ${quiz.settings.title}\n🔑 Join Code: ${createdSessionCode || quiz.id.replace(/[^0-9]/g, '').slice(0, 6).padEnd(6, '9')}\n🔗 Link: ${window.location.origin}/quiz/${quiz.id}`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex flex-col items-center justify-center space-y-1 cursor-pointer transition-all shadow-md"
+              >
+                <Share2 className="w-5 h-5 text-white" />
+                <span>Send WhatsApp</span>
+              </a>
+
               <button
                 onClick={handleShareLink}
                 className="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs border border-emerald-200 flex flex-col items-center justify-center space-y-1 cursor-pointer transition-all"
               >
                 <Share2 className="w-5 h-5 text-emerald-600" />
-                <span>Share Link</span>
+                <span>Copy Link</span>
               </button>
 
               <button

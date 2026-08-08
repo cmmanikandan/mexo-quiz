@@ -323,9 +323,11 @@ export const QuizDetailPage: React.FC = () => {
           <p className="text-[11px] text-slate-500">Students can join using this 6-digit code.</p>
         </div>
 
-        {/* Share Link Box */}
+        {/* Share Link & WhatsApp Box */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-          <span className="text-xs font-black uppercase text-blue-600 tracking-wider">Direct Activity Link</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase text-emerald-600 tracking-wider">Share via WhatsApp / Direct Link</span>
+          </div>
           <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-xs font-mono text-slate-700 truncate mr-2">{shareUrl}</span>
             <button
@@ -336,7 +338,17 @@ export const QuizDetailPage: React.FC = () => {
               <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">Share this direct link with students.</p>
+          <a
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+              `🎮 Join my MEXO Quiz!\n\n📌 Quiz: ${quiz.settings?.title}\n🔑 Join Code: ${joinCode}\n🔗 Link: ${shareUrl}`
+            )}`}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center space-x-2"
+          >
+            <Share2 className="w-4 h-4 text-white" />
+            <span>Send Code & Link on WhatsApp</span>
+          </a>
         </div>
 
         {/* Resource Rules Summary */}
