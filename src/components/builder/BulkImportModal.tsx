@@ -63,6 +63,29 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
     reader.readAsText(file);
   };
 
+  // Robust CSV Line Parser splitting strictly on non-quoted commas
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let c = 0; c < line.length; c++) {
+      const char = line[c];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim().replace(/^"|"$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    if (current || line.endsWith(',')) {
+      result.push(current.trim().replace(/^"|"$/g, ''));
+    }
+    return result;
+  };
+
   const handleParse = () => {
     setError('');
     setSuccessCount(null);
@@ -105,9 +128,7 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
 
         for (let i = startIndex; i < lines.length; i++) {
           const line = lines[i];
-          // Regex matching CSV values while handling quoted strings containing commas
-          const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-          const cleanParts = parts.map(p => p.replace(/^"|"$/g, '').trim());
+          const cleanParts = parseCSVLine(line);
 
           if (cleanParts.length === 0 || !cleanParts[0]) continue;
 
@@ -142,7 +163,7 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
             });
           }
 
-          // If no option is marked correct, default first option
+          // Default first option if none matched
           if (!optionsList.some(o => o.isCorrect)) {
             optionsList[0].isCorrect = true;
           }
@@ -168,7 +189,7 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
       setTimeout(() => {
         onImport(parsedQuestions);
         onClose();
-      }, 1000);
+      }, 800);
     } catch (e: any) {
       setError(`Parsing error: ${e.message || 'Invalid format'}`);
     }
