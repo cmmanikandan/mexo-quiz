@@ -27,7 +27,7 @@ export const QuizLibraryPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<ResourceType | 'all' | 'drafts' | 'favorites'>('all');
+  const [activeTab, setActiveTab] = useState<ResourceType | 'all' | 'drafts' | 'favorites' | 'shared_with_me'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'updated' | 'created' | 'popular' | 'rating' | 'alphabetical'>('updated');
 
@@ -63,6 +63,11 @@ export const QuizLibraryPage: React.FC = () => {
     return quizzes.filter(q => q.creator_id === currentUserId || q.creator_name === currentUserName);
   }, [quizzes, currentUserId, currentUserName]);
 
+  // Shared resources created by others
+  const sharedResources = useMemo(() => {
+    return quizzes.filter(q => q.creator_id !== currentUserId && q.creator_name !== currentUserName && q.is_public);
+  }, [quizzes, currentUserId, currentUserName]);
+
   // Compute counts for tab badges dynamically from real data
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {
@@ -75,6 +80,7 @@ export const QuizLibraryPage: React.FC = () => {
       passage: 0,
       drafts: 0,
       favorites: 0,
+      shared_with_me: sharedResources.length,
     };
 
     myResources.forEach(q => {
@@ -85,17 +91,17 @@ export const QuizLibraryPage: React.FC = () => {
     });
 
     return counts;
-  }, [myResources]);
+  }, [myResources, sharedResources]);
 
   const filteredQuizzes = useMemo(() => {
-    let list = [...myResources];
+    let list = activeTab === 'shared_with_me' ? [...sharedResources] : [...myResources];
 
     // Filter by Tab
     if (activeTab === 'drafts') {
       list = list.filter(q => q.settings?.status === 'draft');
     } else if (activeTab === 'favorites') {
       list = list.filter(q => (q.rating_avg || 0) >= 4.8);
-    } else if (activeTab !== 'all') {
+    } else if (activeTab !== 'all' && activeTab !== 'shared_with_me') {
       list = list.filter(q => (q.resource_type || 'quiz') === activeTab);
     }
 
@@ -225,6 +231,7 @@ export const QuizLibraryPage: React.FC = () => {
         <div className="w-full flex items-center space-x-2 overflow-x-auto pb-1 max-w-full scrollbar-none touch-pan-x">
           {[
             { id: 'all', label: 'All Items' },
+            { id: 'shared_with_me', label: 'Shared with Me' },
             { id: 'quiz', label: 'Quizzes' },
             { id: 'assessment', label: 'Assessments' },
             { id: 'lesson', label: 'Lessons' },
