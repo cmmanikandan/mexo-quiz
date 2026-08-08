@@ -392,8 +392,8 @@ export const QuizBuilder: React.FC = () => {
         <QuestionBankSelector
           isOpen={showBankModal}
           onClose={() => setShowBankModal(false)}
-          onSelectQuestions={bankQuestions => {
-            setQuiz(prev => ({ ...prev, questions: [...prev.questions, ...bankQuestions] }));
+          onSelectQuestion={(bankQuestion: Question) => {
+            setQuiz(prev => ({ ...prev, questions: [...prev.questions, bankQuestion] }));
             setIsSaved(false);
             setShowBankModal(false);
           }}
