@@ -90,7 +90,7 @@ export const AssignmentsPage: React.FC = () => {
         </div>
 
         <MexoButton
-          variant="amber"
+          variant="purple"
           size="lg"
           onClick={() => setShowCreateModal(true)}
           leftIcon={<Plus className="w-5 h-5" />}
