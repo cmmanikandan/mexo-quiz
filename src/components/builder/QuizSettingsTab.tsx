@@ -7,9 +7,18 @@ import { Settings, Shield, Award, Clock, Users, Flame, Lock } from 'lucide-react
 interface QuizSettingsTabProps {
   settings: QuizSettings;
   onChange: (updated: QuizSettings) => void;
+  onSaveSettings?: () => void;
+  onCancel?: () => void;
+  isSavingSettings?: boolean;
 }
 
-export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({ settings, onChange }) => {
+export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({
+  settings,
+  onChange,
+  onSaveSettings,
+  onCancel,
+  isSavingSettings = false,
+}) => {
   const update = (patch: Partial<QuizSettings>) => {
     onChange({ ...settings, ...patch });
   };
@@ -306,6 +315,34 @@ export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({ settings, onCh
           />
         </div>
       </div>
+
+      {/* Manual Save Settings Actions Footer */}
+      {onSaveSettings && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <p className="text-xs text-slate-500 font-semibold">
+            All quiz rules and settings are automatically synced to the database.
+          </p>
+          <div className="flex items-center space-x-3">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onSaveSettings}
+              disabled={isSavingSettings}
+              className="px-5 py-2 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSavingSettings ? 'Saving settings...' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

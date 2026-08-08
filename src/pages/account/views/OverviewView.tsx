@@ -32,11 +32,11 @@ export const OverviewView: React.FC = () => {
           <p className="text-xs text-slate-500">MEXO ID: {profile?.username || 'user'}</p>
 
           <div className="pt-2 flex flex-wrap justify-center sm:justify-start gap-2">
-            <span className="px-3 py-1 rounded-full bg-white text-[#7C3AED] text-xs font-bold shadow-2xs border border-purple-100">
-              🎓 Student & 👨‍🏫 Teacher Enabled
-            </span>
             <span className="px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
               Active MEXO Account
+            </span>
+            <span className="px-3 py-1 rounded-full bg-white text-[#7C3AED] text-xs font-extrabold shadow-2xs border border-purple-100">
+              Creator · Learner · Host · Participant
             </span>
           </div>
         </div>

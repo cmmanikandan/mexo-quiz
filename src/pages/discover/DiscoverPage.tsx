@@ -55,11 +55,11 @@ export const DiscoverPage: React.FC = () => {
     }).filter(q => q.is_public && q.settings.visibility !== 'private');
   }, [searchQuery, selectedType, selectedSubject, selectedDifficulty, selectedGrade, sortBy]);
 
-  const handleDuplicate = (e: React.MouseEvent, q: Quiz) => {
+  const handleDuplicate = async (e: React.MouseEvent, q: Quiz) => {
     e.stopPropagation();
     const currentUserId = profile?.id || user?.id || 'guest';
     const currentName = profile?.username || user?.email || 'MEXO User';
-    const copy = quizService.duplicateQuiz(q.id, currentName, currentUserId);
+    const copy = await quizService.duplicateQuiz(q.id, currentName, currentUserId);
     if (copy) {
       navigate(`/builder/${copy.id}`);
     }

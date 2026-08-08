@@ -141,15 +141,17 @@ export const QuizLibraryPage: React.FC = () => {
   // Handlers for Delete & Duplicate
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this learning resource?')) {
-      quizService.deleteQuiz(id);
+    const targetQuiz = quizzes.find(q => q.id === id);
+    const title = targetQuiz?.settings?.title || 'this quiz';
+    if (window.confirm(`Delete "${title}"? This will move the quiz to Trash / delete it permanently. This action cannot be undone.`)) {
+      await quizService.deleteQuiz(id);
       setQuizzes(quizService.getAllQuizzes());
     }
   };
 
-  const handleDuplicate = (id: string, e: React.MouseEvent) => {
+  const handleDuplicate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const copy = quizService.duplicateQuiz(id, currentUserName, currentUserId);
+    const copy = await quizService.duplicateQuiz(id, currentUserName, currentUserId);
     if (copy) {
       setQuizzes(quizService.getAllQuizzes());
       navigate(`/builder/${copy.id}`);
@@ -340,8 +342,29 @@ export const QuizLibraryPage: React.FC = () => {
                     alt={q.settings?.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">
-                    {q.resource_type || 'quiz'}
+                  <div className="absolute top-2.5 right-2.5 flex items-center space-x-1.5">
+                    {/* Status Badge */}
+                    {(!q.settings?.status || q.settings.status === 'draft') ? (
+                      <div className="px-2.5 py-1 rounded-full bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        DRAFT
+                      </div>
+                    ) : q.settings.status === 'published' ? (
+                      <div className="px-2.5 py-1 rounded-full bg-emerald-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        PUBLISHED
+                      </div>
+                    ) : q.settings.status === 'scheduled' ? (
+                      <div className="px-2.5 py-1 rounded-full bg-blue-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        SCHEDULED
+                      </div>
+                    ) : (
+                      <div className="px-2.5 py-1 rounded-full bg-slate-700/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        {q.settings.status}
+                      </div>
+                    )}
+
+                    <div className="px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">
+                      {q.resource_type || 'quiz'}
+                    </div>
                   </div>
                   {q.settings?.subject && (
                     <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-purple-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">
@@ -375,11 +398,18 @@ export const QuizLibraryPage: React.FC = () => {
 
                   {/* Real Metadata Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                      (!q.settings?.status || q.settings.status === 'draft')
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-purple-50 text-[#7C3AED]'
+                    }`}>
+                      {(!q.settings?.status || q.settings.status === 'draft') ? 'DRAFT' : 'PUBLISHED'}
+                    </span>
                     <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-[#7C3AED] text-[10px] font-bold">
                       {q.questions?.length || 0} Qs
                     </span>
                     <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-[10px] font-bold">
-                      {q.settings?.quizDurationMinutes || 10}m
+                      {q.questions?.reduce((acc, curr) => acc + (curr.points || 0), 0)} pts
                     </span>
                     {q.settings?.grade && (
                       <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">

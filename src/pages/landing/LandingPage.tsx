@@ -212,39 +212,39 @@ export const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             <div
-              onClick={() => { switchRole('student'); navigate('/signin'); }}
+              onClick={() => navigate('/signin')}
               className="p-6 rounded-3xl bg-emerald-50/60 border border-emerald-200 hover:shadow-md transition-all cursor-pointer space-y-3"
             >
               <div className="text-3xl">🎓</div>
-              <h3 className="text-base font-extrabold text-slate-900">Student Dashboard</h3>
+              <h3 className="text-base font-extrabold text-slate-900">Learner & Participant</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Take quizzes, track daily streaks, earn XP & coins, practice untimed flashcards, and download verified completion certificates.
+                Take quizzes, submit timed assessments, track daily streaks, earn XP & coins, practice untimed flashcards, and download certificates.
               </p>
-              <span className="text-xs font-bold text-emerald-700 hover:underline block pt-1">Explore Student Mode ➔</span>
+              <span className="text-xs font-bold text-emerald-700 hover:underline block pt-1">Start Learning ➔</span>
             </div>
 
             <div
-              onClick={() => { switchRole('teacher'); navigate('/signin'); }}
+              onClick={() => navigate('/signin')}
               className="p-6 rounded-3xl bg-purple-50/60 border border-purple-200 hover:shadow-md transition-all cursor-pointer space-y-3"
             >
-              <div className="text-3xl">👨‍🏫</div>
-              <h3 className="text-base font-extrabold text-slate-900">Teacher Dashboard</h3>
+              <div className="text-3xl">✍️</div>
+              <h3 className="text-base font-extrabold text-slate-900">Creator & Live Host</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Drag-and-drop question builder, bulk import (PDF/DOCX/CSV/MEXO Forms), question bank repository, classrooms, and homework.
+                Drag-and-drop question builder, auto-save drafts, bulk import, host live sessions with Join Codes, and assign homework to classes.
               </p>
-              <span className="text-xs font-bold text-[#7C3AED] hover:underline block pt-1">Explore Teacher Mode ➔</span>
+              <span className="text-xs font-bold text-[#7C3AED] hover:underline block pt-1">Create & Host ➔</span>
             </div>
 
             <div
-              onClick={() => { switchRole('admin'); navigate('/signin'); }}
+              onClick={() => navigate('/signin')}
               className="p-6 rounded-3xl bg-amber-50/60 border border-amber-200 hover:shadow-md transition-all cursor-pointer space-y-3"
             >
               <div className="text-3xl">⚡</div>
-              <h3 className="text-base font-extrabold text-slate-900">Admin Control Center</h3>
+              <h3 className="text-base font-extrabold text-slate-900">Analytics & Reports</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Manage user roles, platform categories, system analytics reports, database health, and ecosystem integrations.
+                Real-time submission analytics, item difficulty statistics, score distributions, violation logs, and exportable reports.
               </p>
-              <span className="text-xs font-bold text-amber-700 hover:underline block pt-1">Explore Admin Mode ➔</span>
+              <span className="text-xs font-bold text-amber-700 hover:underline block pt-1">View Analytics ➔</span>
             </div>
           </div>
         </div>

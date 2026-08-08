@@ -52,7 +52,7 @@ export const quizService = {
     return list.find(q => q.id === id) || null;
   },
 
-  saveQuiz(quiz: Quiz): Quiz {
+  saveQuizSync(quiz: Quiz): Quiz {
     const list = this.getAllQuizzes();
     const existingIndex = list.findIndex(q => q.id === quiz.id);
     const updatedQuiz: Quiz = {
@@ -71,39 +71,68 @@ export const quizService = {
       localStorage.setItem(LOCAL_QUIZZES_KEY, JSON.stringify(list));
     } catch (e) {}
 
-    (async () => {
-      try {
-        await supabase.from('quizzes').upsert({
-          id: updatedQuiz.id,
-          creator_id: updatedQuiz.creator_id,
-          creator_name: updatedQuiz.creator_name,
-          resource_type: updatedQuiz.resource_type,
-          is_public: updatedQuiz.is_public,
-          settings: updatedQuiz.settings,
-          questions: updatedQuiz.questions,
-          updated_at: updatedQuiz.updated_at,
-        });
-      } catch (e) {}
-    })();
-
     return updatedQuiz;
   },
 
-  deleteQuiz(id: string): boolean {
+  async saveQuiz(quiz: Quiz): Promise<{ success: boolean; quiz: Quiz; error?: any }> {
+    const updatedQuiz = this.saveQuizSync(quiz);
+
+    try {
+      const { data, error } = await supabase.from('quizzes').upsert({
+        id: updatedQuiz.id,
+        creator_id: updatedQuiz.creator_id,
+        creator_name: updatedQuiz.creator_name,
+        creator_avatar: updatedQuiz.creator_avatar,
+        resource_type: updatedQuiz.resource_type || 'quiz',
+        is_public: updatedQuiz.is_public ?? true,
+        settings: updatedQuiz.settings,
+        questions: updatedQuiz.questions,
+        plays_count: updatedQuiz.plays_count || 0,
+        rating_avg: updatedQuiz.rating_avg || 5.0,
+        rating_count: updatedQuiz.rating_count || 1,
+        updated_at: updatedQuiz.updated_at,
+      }).select();
+
+      if (error) {
+        console.error('Supabase save quiz error:', error);
+        return { success: false, quiz: updatedQuiz, error };
+      }
+
+      if (data && data.length > 0) {
+        const serverQuiz: Quiz = {
+          ...updatedQuiz,
+          created_at: data[0].created_at || updatedQuiz.created_at,
+          updated_at: data[0].updated_at || updatedQuiz.updated_at,
+        };
+        this.saveQuizSync(serverQuiz);
+        return { success: true, quiz: serverQuiz };
+      }
+
+      return { success: true, quiz: updatedQuiz };
+    } catch (err) {
+      console.error('Save quiz network/database error:', err);
+      // Offline fallback success using local storage cache
+      return { success: true, quiz: updatedQuiz };
+    }
+  },
+
+  async deleteQuiz(id: string): Promise<boolean> {
     let list = this.getAllQuizzes();
     list = list.filter(q => q.id !== id);
     try {
       localStorage.setItem(LOCAL_QUIZZES_KEY, JSON.stringify(list));
     } catch (e) {}
-    (async () => {
-      try {
-        await supabase.from('quizzes').delete().eq('id', id);
-      } catch (e) {}
-    })();
+
+    try {
+      const { error } = await supabase.from('quizzes').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase delete quiz error:', error);
+      }
+    } catch (e) {}
     return true;
   },
 
-  duplicateQuiz(id: string, newCreatorName: string, newCreatorId: string): Quiz | null {
+  async duplicateQuiz(id: string, newCreatorName: string, newCreatorId: string): Promise<Quiz | null> {
     const original = this.getQuizById(id);
     if (!original) return null;
 
@@ -124,7 +153,8 @@ export const quizService = {
       },
     };
 
-    return this.saveQuiz(copy);
+    const res = await this.saveQuiz(copy);
+    return res.quiz;
   },
 
   searchQuizzes(params: {

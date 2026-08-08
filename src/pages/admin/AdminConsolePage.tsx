@@ -77,8 +77,8 @@ export const AdminConsolePage: React.FC = () => {
     } catch (e) {}
   };
 
-  const handleDeleteQuiz = (quizId: string) => {
-    quizService.deleteQuiz(quizId);
+  const handleDeleteQuiz = async (quizId: string) => {
+    await quizService.deleteQuiz(quizId);
     setQuizzesList(prev => prev.filter(q => q.id !== quizId));
   };
 

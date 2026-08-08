@@ -1,30 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MexoAvatar } from '../../components/common/MexoAvatar';
 import { useAuth } from '../../contexts/AuthContext';
-import { useRole } from '../../contexts/RoleContext';
 import { attemptService } from '../../services/attemptService';
 import { quizService } from '../../services/quizService';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import {
   User,
   ShieldCheck,
-  Flame,
   Award,
   Trophy,
   Settings,
   ExternalLink,
   Layers,
   CheckCircle2,
-  RefreshCw,
-  Zap,
+  Sparkles,
+  Radio,
+  BookOpen,
+  Users,
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  useDocumentTitle('User Profile & Capabilities — MEXO Quiz');
+  useDocumentTitle('MEXO Account & Capabilities — MEXO Quiz');
   const navigate = useNavigate();
-  const { profile, user, signOut } = useAuth();
-  const { activeRole, switchRole } = useRole();
+  const { profile, user } = useAuth();
 
   const currentUserId = profile?.id || user?.id || '';
   const attempts = attemptService.getUserAttempts(currentUserId);
@@ -36,9 +35,16 @@ export const ProfilePage: React.FC = () => {
 
   const mexoId = profile?.username || user?.email?.split('@')[0] || '927624bit060';
 
+  const capabilities = [
+    { label: 'Creator', description: 'Design quizzes, assessments & slide lessons', icon: Sparkles, color: 'text-purple-600 bg-purple-50' },
+    { label: 'Learner', description: 'Take quizzes, submit assessments & earn XP', icon: BookOpen, color: 'text-blue-600 bg-blue-50' },
+    { label: 'Host', description: 'Run multiplayer live host quiz sessions', icon: Radio, color: 'text-rose-600 bg-rose-50' },
+    { label: 'Participant', description: 'Join live host games & classroom assignments', icon: Users, color: 'text-emerald-600 bg-emerald-50' },
+  ];
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 select-none">
-      {/* Profile Header Identity Banner */}
+      {/* Profile Header — Simple Identity Section */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-5 text-center md:text-left">
           <MexoAvatar
@@ -62,7 +68,7 @@ export const ProfilePage: React.FC = () => {
             <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-2">
               <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-extrabold flex items-center space-x-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Student & Teacher Enabled</span>
+                <span>MEXO Account</span>
               </span>
 
               <span className="px-3 py-1 rounded-full bg-amber-400/30 text-amber-200 border border-amber-300/40 text-[11px] font-bold">
@@ -72,22 +78,46 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Mode Switcher */}
-        <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl border border-white/20 text-center space-y-2 shrink-0">
-          <p className="text-[11px] font-extrabold uppercase text-purple-200 tracking-wider">Current Account Mode</p>
-          <p className="text-lg font-black capitalize text-yellow-300">{activeRole} Mode</p>
+        <button
+          onClick={() => navigate('/account')}
+          className="px-5 py-2.5 rounded-2xl bg-white text-[#7C3AED] hover:bg-purple-50 font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center space-x-1.5 shrink-0"
+        >
+          <User className="w-4 h-4" />
+          <span>Manage MEXO Account</span>
+        </button>
+      </div>
 
-          <button
-            onClick={() => switchRole(activeRole === 'student' ? 'teacher' : 'student')}
-            className="w-full px-4 py-2 rounded-2xl bg-white text-[#7C3AED] hover:bg-purple-50 font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Switch to {activeRole === 'student' ? 'Teacher' : 'Student'}</span>
-          </button>
+      {/* Account Capabilities Display */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
+        <div className="space-y-1">
+          <h3 className="text-sm font-extrabold text-slate-900">Unified Account Capabilities</h3>
+          <p className="text-xs text-slate-500">
+            Your single MEXO Account unlocks full access across all platform capabilities without switching roles.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {capabilities.map(cap => {
+            const Icon = cap.icon;
+            return (
+              <div
+                key={cap.label}
+                className="p-4 rounded-2xl border border-slate-100 bg-slate-50/60 space-y-2 flex flex-col justify-between"
+              >
+                <div className="flex items-center space-x-2">
+                  <div className={`p-2 rounded-xl ${cap.color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-extrabold text-slate-900">{cap.label}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">{cap.description}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Account KPI Metrics */}
+      {/* Account Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center space-x-4">
           <div className="p-3 rounded-2xl bg-purple-50 text-[#7C3AED]">
@@ -95,7 +125,7 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div>
             <p className="text-[11px] text-slate-500 font-extrabold uppercase">Total XP</p>
-            <p className="text-lg font-black text-slate-900">{profile?.xp || (attempts.length * 50)} XP</p>
+            <p className="text-lg font-black text-slate-900">{profile?.xp || attempts.length * 50} XP</p>
             <span className="text-[10px] text-[#7C3AED] font-bold">Level {profile?.level || 1}</span>
           </div>
         </div>
@@ -136,7 +166,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Account Settings Options */}
+      {/* Quick Links */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
         <h3 className="text-sm font-extrabold text-slate-900">Account Management</h3>
 

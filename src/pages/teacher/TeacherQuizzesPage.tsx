@@ -10,15 +10,15 @@ export const TeacherQuizzesPage: React.FC = () => {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState(() => quizService.getAllQuizzes());
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this quiz?')) {
-      quizService.deleteQuiz(id);
+      await quizService.deleteQuiz(id);
       setQuizzes(quizService.getAllQuizzes());
     }
   };
 
-  const handleDuplicate = (id: string) => {
-    quizService.duplicateQuiz(id, 'Teacher', 'mexo-teacher');
+  const handleDuplicate = async (id: string) => {
+    await quizService.duplicateQuiz(id, 'Teacher', 'mexo-teacher');
     setQuizzes(quizService.getAllQuizzes());
   };
 
