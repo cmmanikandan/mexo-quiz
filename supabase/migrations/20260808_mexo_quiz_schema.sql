@@ -54,6 +54,13 @@ CREATE TABLE IF NOT EXISTS public.classrooms (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.classroom_students (
+  class_id TEXT REFERENCES public.classrooms(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (class_id, student_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.homework_assignments (
   id TEXT PRIMARY KEY,
   quiz_id TEXT REFERENCES public.quizzes(id) ON DELETE CASCADE,
@@ -68,11 +75,34 @@ CREATE TABLE IF NOT EXISTS public.homework_assignments (
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('assignment', 'reminder', 'deadline', 'result', 'leaderboard', 'certificate')),
+  read BOOLEAN NOT NULL DEFAULT false,
+  link TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- INDEXES FOR HIGH PERFORMANCE
+CREATE INDEX IF NOT EXISTS idx_quizzes_creator ON public.quizzes(creator_id);
+CREATE INDEX IF NOT EXISTS idx_quizzes_public ON public.quizzes(is_public);
+CREATE INDEX IF NOT EXISTS idx_quizzes_created ON public.quizzes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON public.quiz_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz ON public.quiz_attempts(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_classrooms_code ON public.classrooms(code);
+CREATE INDEX IF NOT EXISTS idx_homework_class ON public.homework_assignments(class_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
+
+-- ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quiz_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homework_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Read Public Quizzes" ON public.quizzes FOR SELECT USING (is_public = true OR creator_id = auth.uid() OR auth.uid() IS NOT NULL);
 CREATE POLICY "Insert Own Quiz" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = creator_id OR creator_id IS NULL);
@@ -81,3 +111,26 @@ CREATE POLICY "Delete Own Quiz" ON public.quizzes FOR DELETE USING (auth.uid() =
 
 CREATE POLICY "Read Own Attempts" ON public.quiz_attempts FOR SELECT USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.quizzes WHERE id = quiz_id AND creator_id = auth.uid()));
 CREATE POLICY "Insert Attempt" ON public.quiz_attempts FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+
+CREATE POLICY "Read Question Bank" ON public.question_bank FOR SELECT USING (creator_id = auth.uid() OR auth.uid() IS NOT NULL);
+CREATE POLICY "Insert Question Bank" ON public.question_bank FOR INSERT WITH CHECK (creator_id = auth.uid() OR creator_id IS NULL);
+
+CREATE POLICY "Read Classrooms" ON public.classrooms FOR SELECT USING (true);
+CREATE POLICY "Teacher Manage Classrooms" ON public.classrooms FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
+
+CREATE POLICY "Read Homework" ON public.homework_assignments FOR SELECT USING (true);
+CREATE POLICY "Teacher Manage Homework" ON public.homework_assignments FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
+
+CREATE POLICY "Read Notifications" ON public.notifications FOR SELECT USING (user_id = auth.uid()::text OR user_id = 'all');
+
+CREATE OR REPLACE FUNCTION public.increment_quiz_play_count(p_quiz_id TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.quizzes
+  SET plays_count = plays_count + 1
+  WHERE id = p_quiz_id;
+END;
+$$;
