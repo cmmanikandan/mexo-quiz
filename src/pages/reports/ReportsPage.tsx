@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
@@ -20,9 +20,22 @@ export const ReportsPage: React.FC = () => {
   useDocumentTitle('Reports & Analytics — MEXO Quiz');
   const navigate = useNavigate();
 
-  const [attempts] = useState<QuizAttempt[]>(() => attemptService.getAllAttempts());
-  const [quizzes] = useState<Quiz[]>(() => quizService.getAllQuizzes());
+  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.all([
+      quizService.fetchQuizzesFromSupabase(),
+      attemptService.fetchAttemptsFromSupabase(),
+    ]).then(([qz, att]) => {
+      setQuizzes(qz);
+      setAttempts(att);
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  }, []);
 
   // Group attempts by quiz to generate reports
   const reportSummaries = quizzes.map(q => {

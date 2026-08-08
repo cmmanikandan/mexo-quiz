@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { quizService } from '../../services/quizService';
@@ -41,28 +41,52 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
-  const [quizzes] = useState<Quiz[]>(() => quizService.getAllQuizzes());
-  const [attempts] = useState(() => attemptService.getAllAttempts());
-  const [assignments] = useState(() => classService.getAssignments());
-  const [classes] = useState(() => classService.getClasses());
-  const [sessions] = useState(() => liveSessionService.getLocalSessions());
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [attempts, setAttempts] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>(() => classService.getClasses());
+  const [sessions, setSessions] = useState<any[]>(() => liveSessionService.getLocalSessions());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [showLiveModal, setShowLiveModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const currentUserId = profile?.id || user?.id || '';
   const displayName = profile
     ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username
     : user?.email?.split('@')[0] || 'MEXO User';
 
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const [qz, att, asg] = await Promise.all([
+        quizService.fetchQuizzesFromSupabase(),
+        attemptService.fetchAttemptsFromSupabase(currentUserId),
+        classService.fetchAssignmentsFromSupabase(),
+      ]);
+      setQuizzes(qz);
+      setAttempts(att);
+      setAssignments(asg);
+    } catch (e) {
+      console.error('Error loading dashboard data:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [currentUserId]);
+
   // Dynamic filter: Has user created content?
   const myCreatedActivities = quizzes.filter(
-    q => q.creator_id === (profile?.id || user?.id) || q.creator_name === displayName
+    q => q.creator_id === currentUserId || q.creator_name === displayName
   );
   const hasCreatedContent = myCreatedActivities.length > 0;
 
   // Dynamic filter: Has user enrolled or assigned items?
-  const myAttempts = attempts.filter(a => a.user_id === (profile?.id || user?.id));
+  const myAttempts = attempts.filter(a => a.user_id === currentUserId || a.student_id === currentUserId);
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';

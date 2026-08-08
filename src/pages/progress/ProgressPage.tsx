@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   Flame,
@@ -22,7 +22,8 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { attemptService } from '../../services/attemptService';
+import { progressService, StudentProgressStats, WeeklyTrendItem, SubjectMasteryItem } from '../../services/progressService';
+import { certificateService } from '../../services/certificateService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
@@ -31,46 +32,53 @@ export const ProgressPage: React.FC = () => {
   const { profile, user } = useAuth();
 
   const currentUserId = profile?.id || user?.id || '';
-  const attempts = attemptService.getUserAttempts(currentUserId);
-  const totalCompleted = attempts.length;
 
-  const avgScore = totalCompleted > 0
-    ? Math.round(attempts.reduce((acc, curr) => acc + curr.percentage, 0) / totalCompleted)
-    : 0;
-
-  // Compute weekly trends dynamically from real attempts
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const scoreTrendData = daysOfWeek.map(day => {
-    const dayAttempts = attempts.filter(a => new Date(a.completed_at).getDay() === daysOfWeek.indexOf(day));
-    const score = dayAttempts.length > 0
-      ? Math.round(dayAttempts.reduce((acc, curr) => acc + curr.percentage, 0) / dayAttempts.length)
-      : 0;
-    return { date: day, score };
+  const [stats, setStats] = useState<StudentProgressStats>({
+    totalCompleted: 0,
+    overallAccuracy: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    totalXp: 0,
+    level: 1,
+    totalPassed: 0,
   });
+  const [weeklyTrend, setWeeklyTrend] = useState<WeeklyTrendItem[]>([]);
+  const [subjectPerformance, setSubjectPerformance] = useState<SubjectMasteryItem[]>([]);
+  const [certificatesCount, setCertificatesCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Compute subject breakdown dynamically from real attempts
-  const defaultSubjects = ['Science', 'Mathematics', 'History', 'Languages', 'Technology'];
-  const subjectMap: Record<string, { totalPct: number; count: number }> = {};
-  
-  attempts.forEach(a => {
-    const subj = a.quiz_title.includes('Math') ? 'Mathematics' : a.quiz_title.includes('Physics') || a.quiz_title.includes('Science') ? 'Science' : 'General Knowledge';
-    if (!subjectMap[subj]) subjectMap[subj] = { totalPct: 0, count: 0 };
-    subjectMap[subj].totalPct += a.percentage;
-    subjectMap[subj].count += 1;
-  });
+  const loadStudentProgressData = async () => {
+    if (!currentUserId) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const [progStats, trend, subjects, certs] = await Promise.all([
+        progressService.getStudentProgress(currentUserId),
+        progressService.getWeeklyScoreTrend(currentUserId),
+        progressService.getSubjectPerformance(currentUserId),
+        certificateService.getUserCertificates(currentUserId),
+      ]);
 
-  const subjectPerformanceData = Object.keys(subjectMap).length > 0
-    ? Object.entries(subjectMap).map(([subject, data]) => ({
-        subject,
-        score: Math.round(data.totalPct / data.count),
-      }))
-    : defaultSubjects.map((subject, idx) => ({
-        subject,
-        score: [85, 92, 78, 88, 95][idx],
-      }));
+      setStats(progStats);
+      setWeeklyTrend(trend);
+      setSubjectPerformance(subjects);
+      setCertificatesCount(certs.length);
+    } catch (e) {
+      console.error('Error loading student progress:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const userStreak = profile?.streak || (totalCompleted > 0 ? 1 : 0);
-  const userLevel = profile?.level || Math.max(1, Math.floor(totalCompleted / 3) + 1);
+  useEffect(() => {
+    loadStudentProgressData();
+  }, [currentUserId]);
+
+  const userStreak = stats.currentStreak || profile?.streak || 0;
+  const userLevel = stats.level || profile?.level || 1;
+  const userXp = stats.totalXp || profile?.xp || 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8 select-none">
@@ -94,12 +102,17 @@ export const ProgressPage: React.FC = () => {
           </div>
           <p className="text-xs font-bold uppercase text-amber-200">Study Streak</p>
           <p className="text-2xl font-black text-white">{userStreak} Days</p>
-          <p className="text-[10px] text-emerald-100">Level {userLevel} Scholar</p>
+          <p className="text-[10px] text-emerald-100">Level {userLevel} Scholar ({userXp} XP)</p>
         </div>
       </div>
 
-      {totalCompleted === 0 ? (
-        /* Empty State for Progress */
+      {isLoading ? (
+        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
+          <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-semibold">Loading progress from Supabase...</p>
+        </div>
+      ) : stats.totalCompleted === 0 ? (
+        /* Empty State for New Users */
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-3 shadow-xs">
           <Brain className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="text-base font-bold text-slate-800">No learning progress recorded yet</h3>
@@ -117,8 +130,8 @@ export const ProgressPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-[11px] text-slate-500 font-extrabold uppercase">Activities Completed</p>
-                <p className="text-sm font-bold text-slate-900">{totalCompleted} Submissions</p>
-                <span className="text-[10px] font-bold text-[#7C3AED]">Real Supabase Data</span>
+                <p className="text-sm font-bold text-slate-900">{stats.totalCompleted} Submissions</p>
+                <span className="text-[10px] font-bold text-[#7C3AED]">{stats.totalPassed} Passed</span>
               </div>
             </div>
 
@@ -128,8 +141,8 @@ export const ProgressPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-[11px] text-slate-500 font-extrabold uppercase">Overall Accuracy</p>
-                <p className="text-sm font-bold text-slate-900">{avgScore}% Average</p>
-                <span className="text-[10px] font-bold text-emerald-600">Calculated from attempts</span>
+                <p className="text-sm font-bold text-slate-900">{stats.overallAccuracy}% Average</p>
+                <span className="text-[10px] font-bold text-emerald-600">From verified attempts</span>
               </div>
             </div>
 
@@ -140,7 +153,7 @@ export const ProgressPage: React.FC = () => {
               <div>
                 <p className="text-[11px] text-slate-500 font-extrabold uppercase">Active Level</p>
                 <p className="text-sm font-bold text-slate-900">Level {userLevel} Scholar</p>
-                <span className="text-[10px] font-bold text-amber-600">{profile?.xp || 0} XP Earned</span>
+                <span className="text-[10px] font-bold text-amber-600">{userXp} XP Total</span>
               </div>
             </div>
 
@@ -150,9 +163,7 @@ export const ProgressPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-[11px] text-slate-500 font-extrabold uppercase">Certificates</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {attempts.filter(a => a.certificate_url).length} Verified
-                </p>
+                <p className="text-sm font-bold text-slate-900">{certificatesCount} Verified</p>
                 <span className="text-[10px] font-bold text-blue-600">Credentials</span>
               </div>
             </div>
@@ -165,7 +176,7 @@ export const ProgressPage: React.FC = () => {
               <h3 className="text-sm font-extrabold text-slate-900">Weekly Score Trend</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={scoreTrendData}>
+                  <AreaChart data={weeklyTrend}>
                     <defs>
                       <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.8} />
@@ -186,15 +197,21 @@ export const ProgressPage: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
               <h3 className="text-sm font-extrabold text-slate-900">Subject Performance Breakdown</h3>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={subjectPerformanceData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="subject" stroke="#94A3B8" fontSize={10} />
-                    <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
-                    <Tooltip />
-                    <Bar dataKey="score" fill="#0878E8" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {subjectPerformance.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={subjectPerformance}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="subject" stroke="#94A3B8" fontSize={10} />
+                      <YAxis stroke="#94A3B8" fontSize={11} domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="score" fill="#0878E8" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    No subject breakdown available yet.
+                  </div>
+                )}
               </div>
             </div>
           </div>

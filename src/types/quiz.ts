@@ -132,6 +132,7 @@ export interface CertificateConfig {
 export interface QuizSettings {
   title: string;
   description: string;
+  category?: string;
   coverImageUrl?: string;
   subject: string;
   difficulty?: DifficultyLevel;

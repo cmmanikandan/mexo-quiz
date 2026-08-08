@@ -7,10 +7,14 @@ import { Database, Plus, Search, Layers } from 'lucide-react';
 
 export const TeacherQuestionBankPage: React.FC = () => {
   useDocumentTitle('Question Bank — Teacher Dashboard');
-  const [bankItems] = useState<QuestionBankItem[]>(() => quizService.getQuestionBank());
+  const [bankItems, setBankItems] = useState<QuestionBankItem[]>([]);
   const [search, setSearch] = useState('');
 
-  const filtered = bankItems.filter(b => b.question.title.toLowerCase().includes(search.toLowerCase()));
+  React.useEffect(() => {
+    quizService.getQuestionBank().then(items => setBankItems(items));
+  }, []);
+
+  const filtered = bankItems.filter(b => b.question?.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 select-none">

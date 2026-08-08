@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MexoAvatar } from '../../components/common/MexoAvatar';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,8 +26,17 @@ export const ProfilePage: React.FC = () => {
   const { profile, user } = useAuth();
 
   const currentUserId = profile?.id || user?.id || '';
-  const attempts = attemptService.getUserAttempts(currentUserId);
-  const createdQuizzes = quizService.getAllQuizzes().filter(q => q.creator_id === currentUserId);
+  const [attempts, setAttempts] = useState<any[]>([]);
+  const [createdQuizzes, setCreatedQuizzes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      attemptService.fetchAttemptsFromSupabase(currentUserId).then(att => setAttempts(att));
+      quizService.fetchQuizzesFromSupabase().then(qz => {
+        setCreatedQuizzes(qz.filter(q => q.creator_id === currentUserId));
+      });
+    }
+  }, [currentUserId]);
 
   const displayName = profile
     ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username
@@ -159,7 +168,7 @@ export const ProfilePage: React.FC = () => {
           <div>
             <p className="text-[11px] text-slate-500 font-extrabold uppercase">Certificates</p>
             <p className="text-lg font-black text-slate-900">
-              {attempts.filter(a => a.certificate_url).length} Verified
+              {attempts.filter((a: any) => a.certificate_url).length} Verified
             </p>
             <span className="text-[10px] text-amber-600 font-bold">Earned Badges</span>
           </div>

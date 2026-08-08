@@ -75,21 +75,17 @@ export const QuizDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      const local = quizService.getQuizById(id);
-      if (local) {
-        setQuiz(local);
-      } else {
-        quizService.fetchQuizById(id).then(fetched => {
-          if (fetched) setQuiz(fetched);
-        });
-      }
+      quizService.fetchQuizById(id).then(fetched => {
+        if (fetched) setQuiz(fetched);
+      });
 
-      const list = attemptService.getQuizAttempts(id);
-      setAttempts(list);
+      attemptService.fetchAttemptsFromSupabase(undefined, id).then(list => {
+        setAttempts(list.filter(a => a.quiz_id === id));
+      });
 
-      // Load assignments for this quiz
-      const allAsgn = classService.getAssignments();
-      setAssignments(allAsgn.filter(a => a.quiz_id === id));
+      classService.fetchAssignmentsFromSupabase().then(allAsgn => {
+        setAssignments(allAsgn.filter(a => a.quiz_id === id));
+      });
     }
   }, [id]);
 

@@ -12,10 +12,16 @@ interface BankSelectorProps {
 }
 
 export const QuestionBankSelector: React.FC<BankSelectorProps> = ({ isOpen, onClose, onSelectQuestion }) => {
-  const [bankItems] = useState<QuestionBankItem[]>(() => quizService.getQuestionBank());
+  const [bankItems, setBankItems] = useState<QuestionBankItem[]>([]);
   const [search, setSearch] = useState('');
 
-  const filtered = bankItems.filter(b => b.question.title.toLowerCase().includes(search.toLowerCase()));
+  React.useEffect(() => {
+    if (isOpen) {
+      quizService.getQuestionBank().then(items => setBankItems(items));
+    }
+  }, [isOpen]);
+
+  const filtered = bankItems.filter(b => b.question?.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <MexoModal isOpen={isOpen} onClose={onClose} title="Import from Question Bank" maxWidth="lg">

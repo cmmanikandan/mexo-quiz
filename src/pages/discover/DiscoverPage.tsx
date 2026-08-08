@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Compass,
@@ -37,7 +37,16 @@ export const DiscoverPage: React.FC = () => {
   const [selectedGrade, setSelectedGrade] = useState('all');
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'rating'>('popular');
 
-  const allQuizzes = useMemo(() => quizService.getAllQuizzes(), []);
+  const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    quizService.fetchQuizzesFromSupabase().then(data => {
+      setAllQuizzes(data);
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  }, []);
 
   // Filter public resources only! Private resources MUST NEVER appear publicly.
   const publicResources = useMemo(() => {
@@ -45,15 +54,42 @@ export const DiscoverPage: React.FC = () => {
   }, [allQuizzes]);
 
   const filteredResources = useMemo(() => {
-    return quizService.searchQuizzes({
-      query: searchQuery,
-      type: selectedType,
-      subject: selectedSubject,
-      difficulty: selectedDifficulty,
-      grade: selectedGrade,
-      sortBy,
-    }).filter(q => q.is_public && q.settings.visibility !== 'private');
-  }, [searchQuery, selectedType, selectedSubject, selectedDifficulty, selectedGrade, sortBy]);
+    let list = [...publicResources];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(item =>
+        item.settings.title.toLowerCase().includes(q) ||
+        item.settings.description.toLowerCase().includes(q) ||
+        (item.settings.tags || []).some(t => t.toLowerCase().includes(q)) ||
+        item.creator_name.toLowerCase().includes(q)
+      );
+    }
+
+    if (selectedType !== 'all') {
+      list = list.filter(item => item.resource_type === selectedType);
+    }
+
+    if (selectedSubject !== 'all') {
+      list = list.filter(item => item.settings.subject.toLowerCase() === selectedSubject.toLowerCase());
+    }
+
+    if (selectedDifficulty !== 'all') {
+      list = list.filter(item => item.settings.difficulty === selectedDifficulty);
+    }
+
+    if (selectedGrade !== 'all') {
+      list = list.filter(item => (item.settings.grade || '').toLowerCase() === selectedGrade.toLowerCase());
+    }
+
+    if (sortBy === 'popular') {
+      list.sort((a, b) => b.plays_count - a.plays_count);
+    } else if (sortBy === 'rating') {
+      list.sort((a, b) => b.rating_avg - a.rating_avg);
+    }
+
+    return list;
+  }, [publicResources, searchQuery, selectedType, selectedSubject, selectedDifficulty, selectedGrade, sortBy]);
 
   const handleDuplicate = async (e: React.MouseEvent, q: Quiz) => {
     e.stopPropagation();

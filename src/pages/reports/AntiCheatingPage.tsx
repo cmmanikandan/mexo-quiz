@@ -35,19 +35,16 @@ export const AntiCheatingPage: React.FC = () => {
 
   useEffect(() => {
     if (activeQuizId) {
-      const localQuiz = quizService.getQuizById(activeQuizId);
-      if (localQuiz) setQuiz(localQuiz);
-      else {
-        quizService.fetchQuizById(activeQuizId).then(fetched => {
-          if (fetched) setQuiz(fetched);
-        });
-      }
-
-      const list = attemptService.getQuizAttempts(activeQuizId);
-      setAttempts(list);
+      quizService.fetchQuizById(activeQuizId).then(fetched => {
+        if (fetched) setQuiz(fetched);
+      });
+      attemptService.fetchAttemptsFromSupabase(undefined, activeQuizId).then(list => {
+        setAttempts(list.filter(a => a.quiz_id === activeQuizId));
+      });
     } else {
-      const allList = attemptService.getAllAttempts();
-      setAttempts(allList);
+      attemptService.fetchAttemptsFromSupabase().then(allList => {
+        setAttempts(allList);
+      });
     }
   }, [activeQuizId]);
 

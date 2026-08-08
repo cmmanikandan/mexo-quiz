@@ -34,49 +34,60 @@ export const ActivityPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
   const [activityList, setActivityList] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const currentUserId = profile?.id || user?.id || '';
-    const attempts = attemptService.getUserAttempts(currentUserId);
-    const createdQuizzes = quizService.getAllQuizzes().filter(q => q.creator_id === currentUserId);
-    const assignments = classService.getAssignments();
+    if (!currentUserId) {
+      setIsLoading(false);
+      return;
+    }
 
-    const items: ActivityItem[] = [];
+    setIsLoading(true);
+    Promise.all([
+      attemptService.fetchAttemptsFromSupabase(currentUserId),
+      quizService.fetchQuizzesFromSupabase(),
+      classService.fetchAssignmentsFromSupabase(),
+    ]).then(([attempts, allQuizzes, assignments]) => {
+      const createdQuizzes = allQuizzes.filter(q => q.creator_id === currentUserId);
+      const items: ActivityItem[] = [];
 
-    // Map attempts
-    attempts.forEach(a => {
-      items.push({
-        id: `act-att-${a.id}`,
-        type: 'quiz_completed',
-        title: `Completed ${a.quiz_title}`,
-        subtitle: `Scored ${a.score}/${a.max_score} (${a.percentage}%) • Earned +${a.xp_earned} XP`,
-        date: a.completed_at,
-        badgeText: a.is_passed ? 'PASSED' : 'COMPLETED',
-        badgeColor: a.is_passed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700',
-        icon: CheckCircle2,
-        link: `/result/${a.id}`,
+      // Map attempts
+      attempts.forEach(a => {
+        items.push({
+          id: `act-att-${a.id}`,
+          type: 'quiz_completed',
+          title: `Completed ${a.quiz_title}`,
+          subtitle: `Scored ${a.score}/${a.max_score} (${a.percentage}%) • Earned +${a.xp_earned} XP`,
+          date: a.completed_at || a.submitted_at || new Date().toISOString(),
+          badgeText: a.is_passed ? 'PASSED' : 'COMPLETED',
+          badgeColor: a.is_passed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700',
+          icon: CheckCircle2,
+          link: `/result/${a.id}`,
+        });
       });
-    });
 
-    // Map created resources
-    createdQuizzes.forEach(q => {
-      items.push({
-        id: `act-create-${q.id}`,
-        type: 'quiz_created',
-        title: `Created ${q.settings.title}`,
-        subtitle: `${q.questions.length} questions • ${q.resource_type || 'quiz'} format`,
-        date: q.created_at,
-        badgeText: 'CREATED',
-        badgeColor: 'bg-purple-100 text-[#7C3AED]',
-        icon: BookOpen,
-        link: `/quiz/${q.id}`,
+      // Map created resources
+      createdQuizzes.forEach(q => {
+        items.push({
+          id: `act-create-${q.id}`,
+          type: 'quiz_created',
+          title: `Created ${q.settings?.title || 'Untitled Quiz'}`,
+          subtitle: `${q.questions.length} questions • ${q.resource_type || 'quiz'} format`,
+          date: q.created_at,
+          badgeText: 'CREATED',
+          badgeColor: 'bg-purple-100 text-[#7C3AED]',
+          icon: BookOpen,
+          link: `/library/${q.id}`,
+        });
       });
-    });
 
-    // Sort by date descending
-    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setActivityList(items);
-  }, [profile, user]);
+      // Sort by newest activity date
+      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setActivityList(items);
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  }, [profile?.id, user?.id]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 select-none">

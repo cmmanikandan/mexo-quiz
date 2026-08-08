@@ -42,42 +42,45 @@ export const AIGeneratorModal: React.FC<AIGeneratorModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!topic && !pastedText) return;
     setIsGenerating(true);
 
-    setTimeout(() => {
-      const questions = quizService.generateResourceWithAI({
+    try {
+      const res = await quizService.generateResourceWithAI({
         topic: topic || 'Custom Document',
         subject,
         grade,
         difficulty,
-        questionCount,
+        count: questionCount,
         resourceType,
-        language,
       });
 
-      setGeneratedQuestions(questions);
-      setIsGenerating(false);
+      setGeneratedQuestions(res.questions);
       setStep('review');
-    }, 1200);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleRegenerateQuestion = (index: number) => {
+  const handleRegenerateQuestion = async (index: number) => {
     const updated = [...generatedQuestions];
-    const newQuestions = quizService.generateResourceWithAI({
-      topic: `${topic} variant ${Date.now()}`,
-      subject,
-      grade,
-      difficulty,
-      questionCount: 1,
-      resourceType,
-      language,
-    });
-    if (newQuestions.length > 0) {
-      updated[index] = newQuestions[0];
-      setGeneratedQuestions(updated);
-    }
+    try {
+      const res = await quizService.generateResourceWithAI({
+        topic: `${topic} variant ${Date.now()}`,
+        subject,
+        grade,
+        difficulty,
+        count: 1,
+        resourceType,
+      });
+      if (res.questions.length > 0) {
+        updated[index] = res.questions[0];
+        setGeneratedQuestions(updated);
+      }
+    } catch (e) {}
   };
 
   const handleDeleteQuestion = (index: number) => {
