@@ -8,6 +8,7 @@ export interface AccountSettingsLayoutProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
   mobileBackPath?: string;
+  isSubpage?: boolean;
 }
 
 export const AccountSettingsLayout: React.FC<AccountSettingsLayoutProps> = ({
@@ -16,6 +17,7 @@ export const AccountSettingsLayout: React.FC<AccountSettingsLayoutProps> = ({
   sidebar,
   children,
   mobileBackPath = '/',
+  isSubpage = false,
 }) => {
   const navigate = useNavigate();
 
@@ -48,11 +50,13 @@ export const AccountSettingsLayout: React.FC<AccountSettingsLayoutProps> = ({
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Navigation Sidebar */}
-        <div className="lg:col-span-1">{sidebar}</div>
+        {/* Navigation Sidebar: Hidden on mobile when viewing a subpage to prevent stacking underneath */}
+        <div className={`lg:col-span-1 ${isSubpage ? 'hidden lg:block' : 'block'}`}>
+          {sidebar}
+        </div>
 
-        {/* Content View */}
-        <div className="lg:col-span-3 bg-white rounded-3xl border border-app-border shadow-mexo-card p-6 sm:p-8">
+        {/* Content View: Full width on mobile when viewing subpage */}
+        <div className={`lg:col-span-3 bg-white rounded-3xl border border-app-border shadow-mexo-card p-6 sm:p-8 ${!isSubpage ? 'block' : 'block'}`}>
           {children}
         </div>
       </div>

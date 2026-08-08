@@ -57,6 +57,7 @@ export const AccountPage: React.FC = () => {
       subtitle={subtitle}
       sidebar={<AccountNavigation />}
       mobileBackPath={isSubpage ? '/account' : '/'}
+      isSubpage={isSubpage}
     >
       {renderContent()}
     </AccountSettingsLayout>

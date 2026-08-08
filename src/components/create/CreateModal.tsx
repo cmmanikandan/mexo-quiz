@@ -80,6 +80,15 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
       type: 'assessment',
     },
     {
+      id: 'blank_form',
+      title: 'Blank Form',
+      description: 'Custom learning form, feedback survey & open-ended questionnaire',
+      icon: ListOrdered,
+      color: 'bg-teal-600 text-white',
+      badge: 'Form',
+      type: 'survey',
+    },
+    {
       id: 'lesson',
       title: 'Blank Slide Lesson',
       description: 'Interactive slide presentation with text, media & poll slides',
@@ -110,6 +119,14 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
       icon: FileText,
       color: 'bg-indigo-600 text-white',
       type: 'passage',
+    },
+    {
+      id: 'poll',
+      title: 'Live Poll',
+      description: 'Single or multi-question opinion poll with real-time bar charts',
+      icon: BarChart2,
+      color: 'bg-cyan-600 text-white',
+      type: 'poll',
     },
   ];
 
