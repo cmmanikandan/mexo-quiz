@@ -42,6 +42,9 @@ import {
   ListOrdered,
   HelpCircle,
   Power,
+  Maximize2,
+  Lock,
+  Zap,
 } from 'lucide-react';
 
 export const QuizDetailPage: React.FC = () => {
@@ -124,9 +127,6 @@ export const QuizDetailPage: React.FC = () => {
   // Anti-Cheating calculations
   const cleanAttempts = attempts.filter(a => (a.integrity_score || 100) >= 80);
   const flaggedAttempts = attempts.filter(a => (a.integrity_score || 100) < 80);
-  const cleanRatePercentage = totalSubmissions > 0
-    ? Math.round((cleanAttempts.length / totalSubmissions) * 100)
-    : 100;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -170,11 +170,9 @@ export const QuizDetailPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 select-none overflow-x-hidden pb-[90px]">
-      {/* 2. QUIZ DETAILS HEADER CARD */}
+      {/* HEADER CARD */}
       <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
-        {/* Top Header Row */}
         <div className="flex items-center justify-between">
-          {/* Desktop & Mobile Left Branding */}
           <div className="flex items-center space-x-3">
             <button
               onClick={() => navigate('/library')}
@@ -199,7 +197,6 @@ export const QuizDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions Menu */}
           <div className="flex items-center space-x-2">
             <div className="hidden sm:flex items-center space-x-2">
               <button
@@ -275,7 +272,6 @@ export const QuizDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Title & Metadata Line */}
         <div className="space-y-1.5 pt-1 border-t border-slate-100">
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
             {quiz.settings?.title}
@@ -301,7 +297,7 @@ export const QuizDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary Action Buttons: Assign, Host Live, Share QR/Link, End Quiz */}
+        {/* Primary Action Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
           <button
             onClick={() => navigate('/assignments')}
@@ -337,7 +333,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. QUIZ DETAILS TABS (Horizontally scrollable on mobile) */}
+      {/* QUIZ DETAILS TABS */}
       <div className="bg-white rounded-2xl border border-slate-200 p-1.5 shadow-2xs overflow-x-auto overflow-y-hidden text-nowrap scrollbar-none">
         <div className="flex space-x-1 min-w-max">
           {[
@@ -368,10 +364,9 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. OVERVIEW TAB */}
+      {/* OVERVIEW TAB */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* 6 Responsive Statistic Cards (Grid 6 cols desktop, 2 cols mobile) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             <div className="p-4 rounded-2xl bg-white border border-slate-200 text-center shadow-2xs">
               <p className="text-[10px] font-bold text-slate-500 uppercase">Submissions</p>
@@ -401,7 +396,6 @@ export const QuizDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Recent Activity Table */}
           <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-2xs">
             <h3 className="text-sm font-extrabold text-slate-900">Recent Quiz Activity</h3>
             {attempts.length === 0 ? (
@@ -441,7 +435,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 5. STUDENTS TAB */}
+      {/* STUDENTS TAB */}
       {activeTab === 'students' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
           <div className="flex items-center justify-between">
@@ -456,7 +450,7 @@ export const QuizDetailPage: React.FC = () => {
               <table className="w-full text-left text-xs min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                    <th className="p-3.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] border-r border-slate-200 shadow-2xs">
+                    <th className="p-3.5 min-w-[170px] border-r border-slate-200">
                       Student
                     </th>
                     <th className="p-3.5">Status</th>
@@ -472,10 +466,10 @@ export const QuizDetailPage: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                   {attempts.map(att => (
                     <tr key={att.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="p-3.5 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-2xs">
-                        <div className="flex items-center space-x-2">
+                      <td className="p-3.5 border-r border-slate-200">
+                        <div className="flex items-center space-x-2.5">
                           <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
-                          <span className="font-bold text-slate-900 truncate max-w-[130px]">{att.user_name}</span>
+                          <span className="font-bold text-slate-900 truncate max-w-[150px]">{att.user_name}</span>
                         </div>
                       </td>
                       <td className="p-3.5">
@@ -516,7 +510,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 6. QUESTIONS & ANSWERS TAB */}
+      {/* QUESTIONS & ANSWERS TAB */}
       {activeTab === 'questions' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-6 shadow-2xs">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -550,7 +544,6 @@ export const QuizDetailPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Options List */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   {q.options?.map(opt => {
                     const isCorrect = opt.isCorrect;
@@ -586,7 +579,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 7. QUESTION MATRIX TAB */}
+      {/* QUESTION MATRIX TAB */}
       {activeTab === 'matrix' && (
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
@@ -599,10 +592,10 @@ export const QuizDetailPage: React.FC = () => {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                      <th className="p-3.5 sticky left-0 bg-slate-100 z-20 min-w-[150px] border-r border-slate-200 shadow-2xs">
+                      <th className="p-3.5 min-w-[170px] border-r border-slate-200">
                         Student
                       </th>
-                      <th className="p-3.5 sticky left-[150px] bg-slate-100 z-20 min-w-[80px] border-r border-slate-200 shadow-2xs text-center">
+                      <th className="p-3.5 min-w-[80px] border-r border-slate-200 text-center">
                         Status
                       </th>
                       {quiz.questions.map((q, idx) => (
@@ -615,10 +608,13 @@ export const QuizDetailPage: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                     {attempts.map(att => (
                       <tr key={att.id}>
-                        <td className="p-3.5 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-2xs font-bold text-slate-900 truncate max-w-[140px]">
-                          {att.user_name}
+                        <td className="p-3.5 border-r border-slate-200">
+                          <div className="flex items-center space-x-2">
+                            <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
+                            <span className="font-bold text-slate-900 truncate max-w-[130px]">{att.user_name}</span>
+                          </div>
                         </td>
-                        <td className="p-3.5 sticky left-[150px] bg-white z-10 border-r border-slate-200 shadow-2xs text-center">
+                        <td className="p-3.5 border-r border-slate-200 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${att.is_passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
                             {att.is_passed ? 'PASS' : 'FAIL'}
                           </span>
@@ -650,7 +646,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 8. LEADERBOARD TAB */}
+      {/* LEADERBOARD TAB */}
       {activeTab === 'leaderboard' && (
         <div className="space-y-6">
           <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-900 via-slate-900 to-indigo-950 text-white shadow-md flex items-center justify-between">
@@ -678,8 +674,8 @@ export const QuizDetailPage: React.FC = () => {
                 <table className="w-full text-left text-xs min-w-[700px]">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                      <th className="p-3.5 sticky left-0 bg-slate-100 z-20 w-12 text-center border-r border-slate-200">#</th>
-                      <th className="p-3.5 sticky left-12 bg-slate-100 z-20 min-w-[150px] border-r border-slate-200">Student</th>
+                      <th className="p-3.5 w-12 text-center border-r border-slate-200">#</th>
+                      <th className="p-3.5 min-w-[170px] border-r border-slate-200">Student</th>
                       <th className="p-3.5 text-center">Score</th>
                       <th className="p-3.5 text-center">Accuracy</th>
                       <th className="p-3.5 text-center">Time Taken</th>
@@ -691,11 +687,14 @@ export const QuizDetailPage: React.FC = () => {
                       .sort((a, b) => b.percentage - a.percentage || a.time_spent_seconds - b.time_spent_seconds)
                       .map((att, idx) => (
                         <tr key={att.id}>
-                          <td className="p-3.5 sticky left-0 bg-white z-10 text-center font-mono font-black border-r border-slate-200">
+                          <td className="p-3.5 text-center font-mono font-black border-r border-slate-200">
                             {idx === 0 ? '👑 1' : idx === 1 ? '🥇 2' : idx === 2 ? '🥈 3' : `${idx + 1}`}
                           </td>
-                          <td className="p-3.5 sticky left-12 bg-white z-10 border-r border-slate-200 font-bold text-slate-900 truncate max-w-[140px]">
-                            {att.user_name}
+                          <td className="p-3.5 border-r border-slate-200 font-bold text-slate-900">
+                            <div className="flex items-center space-x-2.5">
+                              <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
+                              <span className="truncate max-w-[140px]">{att.user_name}</span>
+                            </div>
                           </td>
                           <td className="p-3.5 text-center font-bold">{att.score} / {att.max_score}</td>
                           <td className="p-3.5 text-center font-extrabold text-[#7C3AED]">{att.percentage}%</td>
@@ -717,17 +716,45 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 9. ANTI-CHEATING TAB */}
+      {/* ANTI-CHEATING TAB */}
       {activeTab === 'anticheat' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-slate-900 text-white space-y-2 shadow-md">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold uppercase">
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
-              <span>Anti-Cheating & Exam Integrity</span>
+          {/* Header Banner */}
+          <div className="p-6 rounded-3xl bg-slate-900 text-white space-y-3 shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold uppercase">
+                <ShieldAlert className="w-4 h-4 text-rose-400" />
+                <span>Exam Integrity & Anti-Cheating Logs</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-slate-400">
+                {flaggedAttempts.length} Flagged / {attempts.length} Total
+              </span>
             </div>
-            <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-              Monitor exam security events, tab switches, window blur events, fullscreen exits, blocked actions, speed anomalies, and integrity status for each attempt.
-            </p>
+
+            {/* List of Flagged Cheated Students Summary */}
+            {flaggedAttempts.length > 0 && (
+              <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/30 space-y-2">
+                <div className="flex items-center space-x-2 text-rose-400 text-xs font-extrabold">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Cheating Flags Detected ({flaggedAttempts.length} Students):</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {flaggedAttempts.map(att => (
+                    <div
+                      key={att.id}
+                      onClick={() => setSelectedSecurityAttempt(att)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-900/80 border border-rose-500/40 text-white text-xs font-bold flex items-center space-x-2 cursor-pointer hover:bg-rose-800 transition-colors"
+                    >
+                      <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
+                      <span>{att.user_name}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-rose-500 text-white font-mono text-[9px]">
+                        {att.integrity_score || 0}% Integrity
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-2xs">
@@ -739,13 +766,13 @@ export const QuizDetailPage: React.FC = () => {
                 <table className="w-full text-left text-xs min-w-[850px]">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
-                      <th className="p-3.5 sticky left-0 bg-slate-100 z-20 min-w-[150px] border-r border-slate-200 shadow-2xs">Student</th>
+                      <th className="p-3.5 min-w-[170px] border-r border-slate-200">Student</th>
                       <th className="p-3.5">Integrity</th>
                       <th className="p-3.5 text-center">Tab Switches</th>
                       <th className="p-3.5 text-center">Blur</th>
                       <th className="p-3.5 text-center">Fullscreen</th>
                       <th className="p-3.5 text-center">Speed</th>
-                      <th className="p-3.5">Score</th>
+                      <th className="p-3.5 text-center">Live Time</th>
                       <th className="p-3.5">Status</th>
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
@@ -755,27 +782,36 @@ export const QuizDetailPage: React.FC = () => {
                       const integrity = att.integrity_score || 100;
                       const statusClean = integrity >= 80;
                       return (
-                        <tr key={att.id}>
-                          <td className="p-3.5 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-2xs font-bold text-slate-900 truncate max-w-[140px]">
-                            {att.user_name}
+                        <tr key={att.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3.5 border-r border-slate-200 font-bold text-slate-900">
+                            <div className="flex items-center space-x-2.5">
+                              <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
+                              <span className="truncate max-w-[140px]">{att.user_name}</span>
+                            </div>
                           </td>
                           <td className="p-3.5 font-mono font-black text-purple-700">{integrity}%</td>
-                          <td className="p-3.5 text-center font-mono">{att.tab_switch_count || 0}</td>
+                          <td className="p-3.5 text-center font-mono">
+                            <span className={att.tab_switch_count ? 'text-rose-600 font-extrabold' : 'text-slate-500'}>
+                              {att.tab_switch_count || 0}
+                            </span>
+                          </td>
                           <td className="p-3.5 text-center font-mono">{att.window_blur_count || 0}</td>
                           <td className="p-3.5 text-center font-mono">{att.fullscreen_exit_count || 0}</td>
                           <td className="p-3.5 text-center font-mono">{att.speed_anomaly_count || 0}</td>
-                          <td className="p-3.5 font-bold">{att.score}/{att.max_score}</td>
+                          <td className="p-3.5 text-center font-mono text-[11px]">
+                            {Math.floor(att.time_spent_seconds / 60)}m {att.time_spent_seconds % 60}s
+                          </td>
                           <td className="p-3.5">
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${statusClean ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                              {statusClean ? 'Clean' : 'Flagged'}
+                              {statusClean ? 'Clean' : 'Cheating Flagged'}
                             </span>
                           </td>
                           <td className="p-3.5 text-right">
                             <button
                               onClick={() => setSelectedSecurityAttempt(att)}
-                              className="px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs cursor-pointer"
+                              className="px-3 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs transition-colors cursor-pointer border border-purple-100"
                             >
-                              View
+                              Security Audit
                             </button>
                           </td>
                         </tr>
@@ -789,7 +825,7 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 10. SHARE & QR CODE MODAL */}
+      {/* SHARE & QR CODE MODAL */}
       <MexoModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
@@ -816,57 +852,17 @@ export const QuizDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Visual QR Code Generator */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 text-white max-w-xs mx-auto">
+          {/* Dynamic Scannable QR Code */}
+          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 text-white max-w-xs mx-auto shadow-xl">
             <p className="text-xs font-bold text-slate-300">Scan QR Code on Mobile</p>
-            <div className="w-44 h-44 bg-white p-3 rounded-2xl mx-auto flex items-center justify-center shadow-xl">
-              {/* Clean SVG Matrix QR Code Simulation */}
-              <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900 fill-current">
-                <rect x="0" y="0" width="100" height="100" fill="white" />
-                {/* Outer positioning squares */}
-                <rect x="5" y="5" width="25" height="25" fill="black" />
-                <rect x="9" y="9" width="17" height="17" fill="white" />
-                <rect x="13" y="13" width="9" height="9" fill="black" />
-
-                <rect x="70" y="5" width="25" height="25" fill="black" />
-                <rect x="74" y="9" width="17" height="17" fill="white" />
-                <rect x="78" y="13" width="9" height="9" fill="black" />
-
-                <rect x="5" y="70" width="25" height="25" fill="black" />
-                <rect x="9" y="74" width="17" height="17" fill="white" />
-                <rect x="13" y="78" width="9" height="9" fill="black" />
-
-                {/* Pattern Data Dots */}
-                <rect x="35" y="10" width="6" height="6" fill="black" />
-                <rect x="45" y="10" width="6" height="6" fill="black" />
-                <rect x="55" y="10" width="6" height="6" fill="black" />
-                <rect x="35" y="25" width="6" height="6" fill="black" />
-                <rect x="55" y="25" width="6" height="6" fill="black" />
-
-                <rect x="10" y="35" width="6" height="6" fill="black" />
-                <rect x="25" y="35" width="6" height="6" fill="black" />
-                <rect x="40" y="35" width="6" height="6" fill="black" />
-                <rect x="55" y="35" width="6" height="6" fill="black" />
-                <rect x="70" y="35" width="6" height="6" fill="black" />
-                <rect x="85" y="35" width="6" height="6" fill="black" />
-
-                <rect x="10" y="48" width="6" height="6" fill="black" />
-                <rect x="30" y="48" width="6" height="6" fill="black" />
-                <rect x="50" y="48" width="6" height="6" fill="black" />
-                <rect x="70" y="48" width="6" height="6" fill="black" />
-
-                <rect x="35" y="60" width="6" height="6" fill="black" />
-                <rect x="55" y="60" width="6" height="6" fill="black" />
-                <rect x="75" y="60" width="6" height="6" fill="black" />
-                <rect x="40" y="75" width="6" height="6" fill="black" />
-                <rect x="60" y="75" width="6" height="6" fill="black" />
-                <rect x="80" y="75" width="6" height="6" fill="black" />
-                <rect x="45" y="88" width="6" height="6" fill="black" />
-                <rect x="65" y="88" width="6" height="6" fill="black" />
-                <rect x="85" y="88" width="6" height="6" fill="black" />
-              </svg>
+            <div className="w-48 h-48 bg-white p-2.5 rounded-2xl mx-auto flex items-center justify-center shadow-md">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`}
+                alt="MEXO Quiz QR Code"
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
-            <p className="text-[10px] text-slate-400 font-mono">Scan code with phone camera to join</p>
+            <p className="text-[10px] text-slate-400 font-mono">Scan code with smartphone camera to open test</p>
           </div>
 
           {/* Student Link Input & Buttons */}
@@ -912,6 +908,147 @@ export const QuizDetailPage: React.FC = () => {
           </div>
         </div>
       </MexoModal>
+
+      {/* SECURITY AUDIT BREAKDOWN MODAL */}
+      {selectedSecurityAttempt && (
+        <MexoModal
+          isOpen={!!selectedSecurityAttempt}
+          onClose={() => setSelectedSecurityAttempt(null)}
+          title="Student Security Audit Breakdown"
+          maxWidth="lg"
+        >
+          <div className="space-y-5 pt-2">
+            {/* Student Header */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900 text-white">
+              <div className="flex items-center space-x-3">
+                <MexoAvatar name={selectedSecurityAttempt.user_name} src={selectedSecurityAttempt.user_avatar} size="md" />
+                <div>
+                  <h4 className="text-sm font-bold">{selectedSecurityAttempt.user_name}</h4>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Completed at {new Date(selectedSecurityAttempt.completed_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-400 uppercase">Integrity Score</p>
+                <p className={`text-2xl font-black font-mono ${
+                  (selectedSecurityAttempt.integrity_score || 100) >= 80 ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  {selectedSecurityAttempt.integrity_score || 100}%
+                </p>
+              </div>
+            </div>
+
+            {/* Metrics Breakdown Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-[10px] font-extrabold text-slate-500 uppercase">Tab Switches</p>
+                <p className="text-xl font-black text-rose-600 mt-1 font-mono">
+                  {selectedSecurityAttempt.tab_switch_count || 0}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-[10px] font-extrabold text-slate-500 uppercase">Window Blur</p>
+                <p className="text-xl font-black text-amber-600 mt-1 font-mono">
+                  {selectedSecurityAttempt.window_blur_count || 0}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-[10px] font-extrabold text-slate-500 uppercase">Fullscreen Exits</p>
+                <p className="text-xl font-black text-purple-600 mt-1 font-mono">
+                  {selectedSecurityAttempt.fullscreen_exit_count || 0}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-[10px] font-extrabold text-slate-500 uppercase">Total Time</p>
+                <p className="text-xl font-black text-slate-900 mt-1 font-mono">
+                  {Math.floor(selectedSecurityAttempt.time_spent_seconds / 60)}m {selectedSecurityAttempt.time_spent_seconds % 60}s
+                </p>
+              </div>
+            </div>
+
+            {/* Security Event Live Log Timeline */}
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <h5 className="text-xs font-extrabold text-slate-900 flex items-center space-x-1.5">
+                <Clock className="w-4 h-4 text-purple-600" />
+                <span>Security Violation Chronological Timeline</span>
+              </h5>
+
+              {!selectedSecurityAttempt.security_events || selectedSecurityAttempt.security_events.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  ✓ Clean Exam — No security violations or tab switches detected during this session.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {selectedSecurityAttempt.security_events.map((ev, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-start justify-between text-xs">
+                      <div className="space-y-0.5">
+                        <span className="font-extrabold text-rose-700 capitalize flex items-center space-x-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600 inline" />
+                          <span>{ev.event_type.replace('_', ' ')}</span>
+                        </span>
+                        <p className="text-[11px] text-slate-600">{ev.description || 'Security threshold alert triggered'}</p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-200 text-slate-800 font-mono text-[10px] font-black shrink-0">
+                        {new Date(ev.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </MexoModal>
+      )}
+
+      {/* STUDENT ATTEMPT REVIEW MODAL */}
+      {selectedStudentAttempt && (
+        <MexoModal
+          isOpen={!!selectedStudentAttempt}
+          onClose={() => setSelectedStudentAttempt(null)}
+          title={`Submission Details — ${selectedStudentAttempt.user_name}`}
+          maxWidth="lg"
+        >
+          <div className="space-y-4 pt-2">
+            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-purple-900">{selectedStudentAttempt.user_name}</p>
+                <p className="text-[11px] text-purple-700 font-mono">
+                  Score: {selectedStudentAttempt.score}/{selectedStudentAttempt.max_score} ({selectedStudentAttempt.percentage}%)
+                </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                selectedStudentAttempt.is_passed ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+              }`}>
+                {selectedStudentAttempt.is_passed ? 'PASSED' : 'FAILED'}
+              </span>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              {quiz.questions.map((q, idx) => {
+                const ans = selectedStudentAttempt.answers[q.id];
+                const { isCorrect } = attemptService.gradeQuestion(q, ans);
+                return (
+                  <div key={q.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                      <span>Q{idx + 1}. {q.title}</span>
+                      <span className={isCorrect ? 'text-emerald-600' : 'text-rose-600'}>
+                        {isCorrect ? '✓ Correct' : '✕ Incorrect'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
+                      Answer Given: {ans || 'No Answer'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </MexoModal>
+      )}
     </div>
   );
 };
