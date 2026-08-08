@@ -246,6 +246,30 @@ export const HostSessionPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Team Standings if Mode === 'team' */}
+          {session.mode === 'team' && (
+            <div className="grid grid-cols-3 gap-3 pb-3 border-b border-slate-100">
+              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-center">
+                <span className="text-[10px] font-black text-rose-600 uppercase block">Red Dragons</span>
+                <span className="text-base font-black text-rose-900">
+                  {participants.filter((_, idx) => idx % 3 === 0).reduce((acc, p) => acc + (p.score || 0), 0)} pts
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-center">
+                <span className="text-[10px] font-black text-blue-600 uppercase block">Blue Falcons</span>
+                <span className="text-base font-black text-blue-900">
+                  {participants.filter((_, idx) => idx % 3 === 1).reduce((acc, p) => acc + (p.score || 0), 0)} pts
+                </span>
+              </div>
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-center">
+                <span className="text-[10px] font-black text-amber-600 uppercase block">Gold Phoenix</span>
+                <span className="text-base font-black text-amber-900">
+                  {participants.filter((_, idx) => idx % 3 === 2).reduce((acc, p) => acc + (p.score || 0), 0)} pts
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2 max-h-72 overflow-y-auto">
             {participants.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-8">Leaderboard updates live as students answer.</p>

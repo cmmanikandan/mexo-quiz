@@ -7,6 +7,7 @@ import { QuestionTypeEditors } from './QuestionTypeEditors';
 import { QuizSettingsTab } from './QuizSettingsTab';
 import { BulkImportModal } from './BulkImportModal';
 import { QuestionBankSelector } from './QuestionBankSelector';
+import { AIGeneratorModal } from '../create/AIGeneratorModal';
 import { MexoButton } from '../common/MexoButton';
 import { MexoInput } from '../common/MexoInput';
 import {
@@ -26,6 +27,7 @@ export const QuizBuilder: React.FC = () => {
   const [isSaved, setIsSaved] = useState(true);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
 
   const [quiz, setQuiz] = useState<Quiz>(() => {
@@ -223,6 +225,14 @@ export const QuizBuilder: React.FC = () => {
               Saved Successfully!
             </span>
           )}
+
+          <button
+            onClick={() => setShowAiModal(true)}
+            className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-xs font-extrabold text-[#7C3AED] hover:bg-purple-100 transition-all cursor-pointer shadow-2xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#7C3AED]" />
+            <span>Generate with AI</span>
+          </button>
 
           <button
             onClick={() => setShowImportModal(true)}
@@ -435,6 +445,26 @@ export const QuizBuilder: React.FC = () => {
             setQuiz(prev => ({ ...prev, questions: [...prev.questions, bankQuestion] }));
             setIsSaved(false);
             setShowBankModal(false);
+          }}
+        />
+      )}
+
+      {showAiModal && (
+        <AIGeneratorModal
+          isOpen={showAiModal}
+          onClose={() => setShowAiModal(false)}
+          onGenerated={(generatedQs, metadata) => {
+            setQuiz(prev => ({
+              ...prev,
+              questions: [...prev.questions, ...generatedQs],
+              settings: {
+                ...prev.settings,
+                title: prev.settings.title || metadata.title,
+                subject: prev.settings.subject || metadata.subject,
+              },
+            }));
+            setIsSaved(false);
+            setShowAiModal(false);
           }}
         />
       )}
