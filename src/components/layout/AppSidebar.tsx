@@ -30,7 +30,7 @@ interface AppSidebarProps {
 export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenCreate }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, user } = useAuth();
+  const { profile, user, isAdmin } = useAuth();
 
   const mainNavItems = [
     { label: 'Home', path: '/', icon: Home },
@@ -46,6 +46,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
     { label: 'Calendar', path: '/calendar', icon: Calendar },
     { label: 'Messages', path: '/messages', icon: MessageSquare },
     { label: 'Settings', path: '/settings', icon: Settings },
+    ...(isAdmin ? [{ label: 'Admin Console', path: '/admin', icon: Shield }] : []),
   ];
 
   const handleNav = (item: typeof mainNavItems[0]) => {

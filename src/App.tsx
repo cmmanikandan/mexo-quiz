@@ -22,6 +22,7 @@ import { CalendarPage } from './pages/calendar/CalendarPage';
 import { MessagesPage } from './pages/messages/MessagesPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { AccountPage } from './pages/account/AccountPage';
+import { AdminConsolePage } from './pages/admin/AdminConsolePage';
 
 import { QuizBuilder } from './components/builder/QuizBuilder';
 import { QuizPlayer } from './components/player/QuizPlayer';
@@ -210,8 +211,18 @@ export const AppContent: React.FC = () => {
         path="/account/*"
         element={
           <ProtectedRoute>
-            <AppShell>
+            <AppShell hideSidebar>
               <AccountPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AdminConsolePage />
             </AppShell>
           </ProtectedRoute>
         }

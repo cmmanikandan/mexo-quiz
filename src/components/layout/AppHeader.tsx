@@ -16,7 +16,7 @@ interface AppHeaderProps {
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({ onHamburger, onOpenCreate }) => {
-  const { profile, signOut, user } = useAuth();
+  const { profile, signOut, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [notifications, setNotifications] = useState(() => notificationService.getNotifications());
@@ -181,6 +181,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onHamburger, onOpenCreate 
                   <Settings className="w-4 h-4 mr-2.5 text-slate-500" />
                   Preferences & Settings
                 </DropdownMenu.Item>
+                {isAdmin && (
+                  <DropdownMenu.Item
+                    onClick={() => navigate('/admin')}
+                    className="flex items-center px-3 py-2.5 text-xs font-extrabold text-emerald-700 bg-emerald-50/50 rounded-xl hover:bg-emerald-100/70 cursor-pointer outline-hidden"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2.5 text-emerald-600" />
+                    Admin Console (Super User)
+                  </DropdownMenu.Item>
+                )}
               </div>
 
               <div className="border-t border-slate-100 p-2">

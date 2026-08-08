@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Quiz, Question, QuestionType, QuizSettings } from '../../types/quiz';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Quiz, Question, QuestionType, QuizSettings, ResourceType } from '../../types/quiz';
 import { quizService } from '../../services/quizService';
 import { useAuth } from '../../contexts/AuthContext';
 import { QuestionTypeEditors } from './QuestionTypeEditors';
@@ -10,29 +10,56 @@ import { QuestionBankSelector } from './QuestionBankSelector';
 import { MexoButton } from '../common/MexoButton';
 import { MexoInput } from '../common/MexoInput';
 import {
-  Save, Eye, ArrowLeft, Plus, Copy, Trash2, GripVertical, Settings, Layers, Upload, Database, CheckCircle2, ChevronUp, ChevronDown, Clock, HelpCircle, FileText
+  Save, Eye, ArrowLeft, Plus, Copy, Trash2, GripVertical, Settings, Layers, Upload, Database, CheckCircle2, ChevronUp, ChevronDown, Clock, HelpCircle, FileText, Sparkles
 } from 'lucide-react';
 
 export const QuizBuilder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const location = useLocation();
+  const { profile, user } = useAuth();
+
+  const searchParams = new URLSearchParams(location.search);
+  const resourceTypeParam = (searchParams.get('type') || 'quiz') as ResourceType;
 
   const [activeTab, setActiveTab] = useState<'questions' | 'settings'>('questions');
   const [isSaved, setIsSaved] = useState(true);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
 
   const [quiz, setQuiz] = useState<Quiz>(() => {
     if (id && id !== 'new') {
       const existing = quizService.getQuizById(id);
       if (existing) return existing;
     }
+
+    const aiState = location.state as { aiQuestions?: Question[]; aiMetadata?: any } | null;
+    const initialQuestions: Question[] = aiState?.aiQuestions && aiState.aiQuestions.length > 0
+      ? aiState.aiQuestions
+      : [
+          {
+            id: 'q-initial-1',
+            type: 'multiple_choice',
+            title: 'Sample Question 1: Enter your question title here...',
+            options: [
+              { id: 'o1', text: 'Option A (Correct)', isCorrect: true, explanation: 'Correct choice explanation.' },
+              { id: 'o2', text: 'Option B', isCorrect: false },
+              { id: 'o3', text: 'Option C', isCorrect: false },
+            ],
+            points: 10,
+            isRequired: true,
+          },
+        ];
+
+    const currentUserId = profile?.id || user?.id || 'mexo-user';
+    const currentUserName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : user?.email || 'Teacher';
+
     return {
       id: `quiz-${Date.now()}`,
-      resource_type: 'quiz',
-      creator_id: profile?.id || 'mexo-user',
-      creator_name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : 'Teacher',
+      resource_type: resourceTypeParam,
+      creator_id: currentUserId,
+      creator_name: currentUserName,
       creator_avatar: profile?.avatar_url,
       is_public: true,
       plays_count: 0,
@@ -41,13 +68,13 @@ export const QuizBuilder: React.FC = () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       settings: {
-        title: 'Untitled Quiz',
-        description: 'Quiz description and instructions...',
-        subject: 'General',
-        difficulty: 'medium',
+        title: aiState?.aiMetadata?.topic ? `Quiz: ${aiState.aiMetadata.topic}` : `Untitled ${resourceTypeParam.toUpperCase()}`,
+        description: 'Interactive learning resource description and instructions...',
+        subject: aiState?.aiMetadata?.subject || 'General',
+        difficulty: aiState?.aiMetadata?.difficulty || 'medium',
         language: 'English',
-        grade: 'K-12',
-        tags: ['General', 'Interactive'],
+        grade: aiState?.aiMetadata?.grade || 'K-12',
+        tags: [resourceTypeParam, 'Interactive'],
         status: 'draft',
         autoClose: false,
         attemptsLimit: 0,
@@ -71,22 +98,7 @@ export const QuizBuilder: React.FC = () => {
           templateStyle: 'gold',
         },
       },
-      questions: [
-        {
-          id: 'q-initial-1',
-          type: 'multiple_choice',
-          title: 'Sample Question 1: What is the main component of water?',
-          options: [
-            { id: 'o1', text: 'Hydrogen and Oxygen', isCorrect: true, explanation: 'Water formula is H2O.' },
-            { id: 'o2', text: 'Carbon and Nitrogen', isCorrect: false },
-            { id: 'o3', text: 'Sodium and Chlorine', isCorrect: false },
-          ],
-          points: 10,
-          explanation: 'H2O consists of two hydrogen atoms bonded to one oxygen atom.',
-          hint: 'Think of H2O',
-          isRequired: true,
-        },
-      ],
+      questions: initialQuestions,
     };
   });
 
@@ -160,6 +172,13 @@ export const QuizBuilder: React.FC = () => {
     quizService.saveQuiz(updatedQuiz);
     setQuiz(updatedQuiz);
     setIsSaved(true);
+    setSaveSuccessMsg(true);
+    setTimeout(() => setSaveSuccessMsg(false), 3000);
+  };
+
+  const handlePreview = () => {
+    handleSaveQuiz('draft');
+    navigate(`/quiz/${quiz.id}`);
   };
 
   return (
@@ -168,9 +187,9 @@ export const QuizBuilder: React.FC = () => {
       <div className="h-16 bg-white border-b border-app-border px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-mexo-sm">
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => navigate('/teacher/quizzes')}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
-            title="Back to Quizzes"
+            onClick={() => navigate('/library')}
+            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Back to My Library"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -179,12 +198,16 @@ export const QuizBuilder: React.FC = () => {
               type="text"
               value={quiz.settings.title}
               onChange={e => handleTitleChange(e.target.value)}
-              className="text-base font-extrabold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#7C3AED] focus:bg-white px-1.5 py-0.5 rounded-md outline-none transition-all"
+              className="text-base font-extrabold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#7C3AED] focus:bg-white px-1.5 py-0.5 rounded-md outline-hidden transition-all"
             />
-            <p className="text-[11px] text-slate-400 font-semibold px-1.5">
-              {quiz.questions.length} Questions · Total {quiz.questions.reduce((acc, q) => acc + q.points, 0)} Points ·{' '}
-              <span className={isSaved ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                {isSaved ? 'Saved to Cloud' : 'Unsaved changes'}
+            <p className="text-[11px] text-slate-400 font-semibold px-1.5 flex items-center space-x-2">
+              <span>{quiz.questions.length} Questions</span>
+              <span>·</span>
+              <span>Total {quiz.questions.reduce((acc, q) => acc + q.points, 0)} Points</span>
+              <span>·</span>
+              <span className={isSaved ? 'text-emerald-600 font-bold flex items-center space-x-1' : 'text-amber-600 font-bold'}>
+                {isSaved ? <CheckCircle2 className="w-3 h-3 text-emerald-600 inline" /> : null}
+                <span>{isSaved ? 'Saved to Cloud' : 'Unsaved changes'}</span>
               </span>
             </p>
           </div>
@@ -192,9 +215,15 @@ export const QuizBuilder: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-2">
+          {saveSuccessMsg && (
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 animate-in fade-in">
+              Saved Successfully!
+            </span>
+          )}
+
           <button
             onClick={() => setShowImportModal(true)}
-            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5 text-[#7C3AED]" />
             <span>Bulk Import</span>
@@ -202,13 +231,13 @@ export const QuizBuilder: React.FC = () => {
 
           <button
             onClick={() => setShowBankModal(true)}
-            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            className="hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
           >
             <Database className="w-3.5 h-3.5 text-[#0878E8]" />
             <span>Question Bank</span>
           </button>
 
-          <MexoButton variant="outline" size="sm" onClick={() => navigate(`/quiz/${quiz.id}`)} leftIcon={<Eye className="w-4 h-4" />}>
+          <MexoButton variant="outline" size="sm" onClick={handlePreview} leftIcon={<Eye className="w-4 h-4" />}>
             Preview
           </MexoButton>
 
@@ -262,140 +291,114 @@ export const QuizBuilder: React.FC = () => {
                     <select
                       value={q.type}
                       onChange={e => handleUpdateQuestion(index, { ...q, type: e.target.value as QuestionType })}
-                      className="py-1 px-3 text-xs font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:outline-none"
+                      className="text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-transparent outline-hidden cursor-pointer"
                     >
                       <option value="multiple_choice">Multiple Choice</option>
                       <option value="multiple_select">Multiple Select</option>
                       <option value="true_false">True / False</option>
                       <option value="fill_blank">Fill in the Blank</option>
                       <option value="short_answer">Short Answer</option>
-                      <option value="paragraph">Paragraph Essay</option>
-                      <option value="dropdown">Dropdown Select</option>
-                      <option value="matching">Matching Pairs</option>
+                      <option value="paragraph">Paragraph</option>
+                      <option value="matching">Matching</option>
                       <option value="ordering">Ordering Sequence</option>
-                      <option value="code_question">Code Question</option>
-                      <option value="math_formula">Math Formula</option>
-                      <option value="poll">Opinion Poll</option>
+                      <option value="poll">Poll (No right/wrong)</option>
                     </select>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1 mr-2">
-                      <span className="text-xs font-semibold text-slate-500">Points:</span>
-                      <input
-                        type="number"
-                        value={q.points}
-                        onChange={e => handleUpdateQuestion(index, { ...q, points: parseInt(e.target.value) || 5 })}
-                        className="w-14 py-1 px-2 text-xs font-bold rounded-lg bg-slate-50 border border-slate-200 text-center"
-                      />
-                    </div>
-
+                  <div className="flex items-center space-x-1">
                     <button
-                      type="button"
                       onClick={() => handleMoveQuestion(index, 'up')}
                       disabled={index === 0}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                      title="Move up"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 disabled:opacity-30 cursor-pointer"
+                      title="Move Up"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
                     <button
-                      type="button"
                       onClick={() => handleMoveQuestion(index, 'down')}
                       disabled={index === quiz.questions.length - 1}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                      title="Move down"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 disabled:opacity-30 cursor-pointer"
+                      title="Move Down"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     <button
-                      type="button"
                       onClick={() => handleDuplicateQuestion(index)}
-                      className="p-1.5 text-slate-400 hover:text-[#7C3AED]"
-                      title="Duplicate"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer"
+                      title="Duplicate Question"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <button
-                      type="button"
                       onClick={() => handleDeleteQuestion(index)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600"
-                      title="Delete"
+                      disabled={quiz.questions.length <= 1}
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-500 disabled:opacity-30 cursor-pointer"
+                      title="Delete Question"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Question Prompt Title */}
-                <MexoInput
-                  label="Question Prompt"
-                  value={q.title}
-                  onChange={e => handleUpdateQuestion(index, { ...q, title: e.target.value })}
-                  placeholder="Type your question here..."
-                  required
-                />
-
-                {/* Specific Type Editor */}
+                {/* Question Editor */}
                 <QuestionTypeEditors question={q} onChange={updated => handleUpdateQuestion(index, updated)} />
-
-                {/* Explanation & Hint */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
-                  <MexoInput
-                    label="Explanation (Shown after answering)"
-                    value={q.explanation || ''}
-                    onChange={e => handleUpdateQuestion(index, { ...q, explanation: e.target.value })}
-                    placeholder="Provide clear rationale..."
-                  />
-                  <MexoInput
-                    label="Hint (Optional)"
-                    value={q.hint || ''}
-                    onChange={e => handleUpdateQuestion(index, { ...q, hint: e.target.value })}
-                    placeholder="Clue for students..."
-                  />
-                </div>
               </div>
             ))}
 
-            {/* Add Question Button Bar */}
-            <div className="flex flex-wrap gap-2 justify-center py-6 border-2 border-dashed border-slate-300 rounded-3xl bg-slate-50">
-              <MexoButton variant="purple" size="sm" onClick={() => handleAddQuestion('multiple_choice')} leftIcon={<Plus className="w-4 h-4" />}>
-                Add Multiple Choice
+            {/* Add Question Toolbar */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-slate-200">
+              <MexoButton
+                variant="purple"
+                size="md"
+                onClick={() => handleAddQuestion('multiple_choice')}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                + Add Question
               </MexoButton>
-              <MexoButton variant="outline" size="sm" onClick={() => handleAddQuestion('true_false')} leftIcon={<Plus className="w-4 h-4" />}>
-                True / False
+
+              <MexoButton
+                variant="outline"
+                size="md"
+                onClick={() => handleAddQuestion('true_false')}
+              >
+                + True / False
               </MexoButton>
-              <MexoButton variant="outline" size="sm" onClick={() => handleAddQuestion('fill_blank')} leftIcon={<Plus className="w-4 h-4" />}>
-                Fill Blank
-              </MexoButton>
-              <MexoButton variant="outline" size="sm" onClick={() => handleAddQuestion('code_question')} leftIcon={<Plus className="w-4 h-4" />}>
-                Code Question
-              </MexoButton>
-              <MexoButton variant="outline" size="sm" onClick={() => handleAddQuestion('math_formula')} leftIcon={<Plus className="w-4 h-4" />}>
-                Math Formula
+
+              <MexoButton
+                variant="outline"
+                size="md"
+                onClick={() => handleAddQuestion('multiple_select')}
+              >
+                + Checkbox Select
               </MexoButton>
             </div>
           </div>
         )}
       </div>
 
-      <BulkImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={imported => {
-          setQuiz(prev => ({ ...prev, questions: [...prev.questions, ...imported] }));
-          setIsSaved(false);
-        }}
-      />
+      {showImportModal && (
+        <BulkImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={importedQuestions => {
+            setQuiz(prev => ({ ...prev, questions: [...prev.questions, ...importedQuestions] }));
+            setIsSaved(false);
+            setShowImportModal(false);
+          }}
+        />
+      )}
 
-      <QuestionBankSelector
-        isOpen={showBankModal}
-        onClose={() => setShowBankModal(false)}
-        onSelectQuestion={q => {
-          setQuiz(prev => ({ ...prev, questions: [...prev.questions, q] }));
-          setIsSaved(false);
-        }}
-      />
+      {showBankModal && (
+        <QuestionBankSelector
+          isOpen={showBankModal}
+          onClose={() => setShowBankModal(false)}
+          onSelectQuestions={bankQuestions => {
+            setQuiz(prev => ({ ...prev, questions: [...prev.questions, ...bankQuestions] }));
+            setIsSaved(false);
+            setShowBankModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

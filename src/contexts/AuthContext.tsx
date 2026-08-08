@@ -11,6 +11,7 @@ interface AuthContextType {
   profile: MexoProfile | null;
   authStatus: AuthStatus;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   authLoading: boolean;
   signIn: (emailOrUsername: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -30,6 +31,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAuthenticated = authStatus === 'authenticated';
   const isLoading = authStatus === 'loading';
+
+  const isAdmin =
+    profile?.role === 'admin' ||
+    (Array.isArray(profile?.roles) && profile.roles.includes('admin')) ||
+    user?.email === 'admin@mexo.com' ||
+    (user?.email || '').toLowerCase().startsWith('admin');
 
   const resolveProfile = async (sessionUser: User): Promise<MexoProfile> => {
     const dbProfile = await profileService.getProfileById(sessionUser.id);
@@ -203,6 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         profile,
         authStatus,
         isAuthenticated,
+        isAdmin,
         isLoading,
         authLoading: isLoading,
         signIn,
