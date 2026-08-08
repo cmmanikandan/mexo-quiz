@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HelpCircle,
@@ -14,9 +14,12 @@ import {
   X,
   PlusCircle,
   BrainCircuit,
-  CheckCircle2,
+  FileSpreadsheet,
+  Download,
+  FolderOpen,
 } from 'lucide-react';
 import { AIGeneratorModal } from './AIGeneratorModal';
+import { BulkImportModal } from '../builder/BulkImportModal';
 
 interface CreateModalProps {
   isOpen: boolean;
@@ -26,8 +29,29 @@ interface CreateModalProps {
 export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [showAiModal, setShowAiModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   if (!isOpen) return null;
+
+  // Download Sample CSV Template
+  const handleDownloadSampleCSV = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const csvContent =
+      'Question Text,Question Type,Option A,Option B,Option C,Option D,Correct Option (A/B/C/D),Points,Explanation\n' +
+      '"What is the chemical symbol for Water?",multiple_choice,"H2O","CO2","NaCl","O2","A",10,"Water consists of two hydrogen atoms and one oxygen atom."\n' +
+      '"The Earth orbits around the Sun.",true_false,"True","False","","","A",10,"The Earth completes one full orbit around the Sun every 365.25 days."\n' +
+      '"What is the capital city of France?",multiple_choice,"Paris","London","Berlin","Rome","A",10,"Paris has been the capital of France since 987 AD."\n' +
+      '"Which planet is known as the Red Planet?",multiple_choice,"Venus","Mars","Jupiter","Saturn","B",10,"Mars appears red due to iron oxide on its surface."';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'MEXO_Quiz_Sample_Template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const creationOptions = [
     {
@@ -106,7 +130,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 select-none">
         <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-slate-100 flex flex-col">
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-xs z-10">
@@ -116,7 +140,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
               </div>
               <div>
                 <h2 className="text-xl font-extrabold text-slate-900">Create Learning Resource</h2>
-                <p className="text-xs text-slate-500 font-medium">Select a format or leverage MEXO AI to generate content</p>
+                <p className="text-xs text-slate-500 font-medium">Select a format, use MEXO AI, or import CSV files</p>
               </div>
             </div>
             <button
@@ -128,7 +152,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
           </div>
 
           <div className="p-6 space-y-6">
-            {/* MEXO AI Generator Highlight Banner */}
+            {/* 1. MEXO AI Generator Highlight Banner */}
             <div
               onClick={() => setShowAiModal(true)}
               className="p-5 rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden flex items-center justify-between"
@@ -148,7 +172,48 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
               </div>
             </div>
 
-            {/* Standard Creation Options Grid */}
+            {/* 2. BULK IMPORT & DOWNLOAD CSV TEMPLATE CARD (Right after MEXO AI Card) */}
+            <div className="p-5 rounded-3xl bg-purple-50 border border-purple-200 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-11 h-11 rounded-2xl bg-[#7C3AED] text-white flex items-center justify-center shrink-0 shadow-md">
+                    <FileSpreadsheet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-sm font-black text-slate-900">Bulk Import & CSV Template</h3>
+                      <span className="px-2 py-0.5 rounded-full bg-purple-200 text-[#7C3AED] text-[10px] font-extrabold uppercase">
+                        Instant Import
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 font-medium">
+                      Upload your question files directly or download our ready-to-use CSV template.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons: Download Template vs Import File */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <button
+                  onClick={handleDownloadSampleCSV}
+                  className="p-3.5 rounded-2xl bg-white border border-purple-300 hover:border-[#7C3AED] text-[#7C3AED] font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center space-x-2 shadow-xs group"
+                >
+                  <Download className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
+                  <span>Download Sample CSV Template</span>
+                </button>
+
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="p-3.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center space-x-2 shadow-md"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Import CSV / File Now</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Standard Creation Options Grid */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">Resource Templates</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -179,20 +244,6 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
                 })}
               </div>
             </div>
-
-            {/* Import Options Footer */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="flex items-center space-x-2 text-xs font-semibold text-slate-600">
-                <Upload className="w-4 h-4 text-purple-600" />
-                <span>Import existing activity or file</span>
-              </div>
-              <button
-                onClick={() => setShowAiModal(true)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-              >
-                Import Document / CSV
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -206,6 +257,20 @@ export const CreateModal: React.FC<CreateModalProps> = ({ isOpen, onClose }) => 
             onClose();
             navigate(`/builder/new?type=${metadata.resourceType}`, {
               state: { aiQuestions: generatedQuestions, aiMetadata: metadata },
+            });
+          }}
+        />
+      )}
+
+      {showImportModal && (
+        <BulkImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={importedQuestions => {
+            setShowImportModal(false);
+            onClose();
+            navigate('/builder/new?type=quiz', {
+              state: { aiQuestions: importedQuestions },
             });
           }}
         />
