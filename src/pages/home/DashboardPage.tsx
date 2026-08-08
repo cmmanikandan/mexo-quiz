@@ -133,8 +133,8 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <p className="text-[11px] text-slate-500 font-extrabold uppercase">Daily Study Streak</p>
-            <p className="text-sm font-bold text-slate-900">7 Days Active</p>
-            <span className="text-[10px] font-bold text-[#7C3AED]">Double XP Bonus Active</span>
+            <p className="text-sm font-bold text-slate-900">{profile?.streak ?? (myAttempts.length > 0 ? 1 : 0)} Day{(profile?.streak ?? 1) !== 1 ? 's' : ''} Active</p>
+            <span className="text-[10px] font-bold text-[#7C3AED]">{(profile?.streak ?? 0) >= 3 ? 'Double XP Bonus Active 🔥' : 'Keep studying to build streak'}</span>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <p className="text-[11px] text-slate-500 font-extrabold uppercase">My Library</p>
-            <p className="text-sm font-bold text-slate-900">{quizzes.length} Items Available</p>
+            <p className="text-sm font-bold text-slate-900">{myCreatedActivities.length} Item{myCreatedActivities.length !== 1 ? 's' : ''} Created</p>
             <span className="text-[10px] font-bold text-blue-600">Quizzes, Lessons & Decks</span>
           </div>
         </div>
@@ -155,8 +155,12 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <p className="text-[11px] text-slate-500 font-extrabold uppercase">Completed Quizzes</p>
-            <p className="text-sm font-bold text-slate-900">{attempts.length} Submissions</p>
-            <span className="text-[10px] font-bold text-emerald-600">92% Avg Accuracy</span>
+            <p className="text-sm font-bold text-slate-900">{myAttempts.length} Submission{myAttempts.length !== 1 ? 's' : ''}</p>
+            <span className="text-[10px] font-bold text-emerald-600">
+              {myAttempts.length > 0
+                ? `${Math.round(myAttempts.reduce((a, c) => a + c.percentage, 0) / myAttempts.length)}% Avg Accuracy`
+                : 'Start your first quiz!'}
+            </span>
           </div>
         </div>
 
@@ -331,7 +335,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {quizzes.slice(0, 3).map(q => (
+          {quizzes.filter(q => q.is_public).slice(0, 3).map(q => (
             <div
               key={q.id}
               onClick={() => navigate(`/quiz/${q.id}`)}
