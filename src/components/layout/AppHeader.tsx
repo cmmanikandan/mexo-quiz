@@ -44,9 +44,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onHamburger, onOpenCreate 
         </button>
 
         <a href="/" className="flex items-center space-x-2">
-          <img src="/logo.png" alt="MEXO" className="w-8 h-8 object-contain" />
-          <span className="text-base font-extrabold text-slate-900 tracking-tight hidden sm:inline">
-            MEXO <span className="text-[#7C3AED]">Quiz</span>
+          <img src="/logo.png" alt="MEXO" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
+          <span className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight flex items-center">
+            MEXO<span className="text-[#7C3AED] ml-1">Quiz</span>
           </span>
         </a>
       </div>

@@ -55,9 +55,9 @@ export const DashboardPage: React.FC = () => {
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-3 z-10 text-center md:text-left">
           <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-extrabold uppercase tracking-wider">
-            <span>🔥 {profile?.streak || 7} Day Streak</span>
+            <span>🔥 {profile?.streak ?? (myAttempts.length > 0 ? 1 : 0)} Day Streak</span>
             <span>·</span>
-            <span>Level {profile?.level || 5} Scholar</span>
+            <span>Level {profile?.level ?? (myAttempts.length > 0 ? 2 : 1)} Scholar</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">

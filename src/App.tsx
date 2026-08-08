@@ -23,6 +23,8 @@ import { MessagesPage } from './pages/messages/MessagesPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { AccountPage } from './pages/account/AccountPage';
 import { AdminConsolePage } from './pages/admin/AdminConsolePage';
+import { ActivityPage } from './pages/activity/ActivityPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
 
 import { QuizBuilder } from './components/builder/QuizBuilder';
 import { QuizPlayer } from './components/player/QuizPlayer';
@@ -213,6 +215,26 @@ export const AppContent: React.FC = () => {
           <ProtectedRoute>
             <AppShell hideSidebar>
               <AccountPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/activity"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <ActivityPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <ProfilePage />
             </AppShell>
           </ProtectedRoute>
         }
