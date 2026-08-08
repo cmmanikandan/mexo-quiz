@@ -1,5 +1,6 @@
 -- MEXO Quiz Supabase Migration 20260808
 -- Shares profiles and auth with MEXO Mail & MEXO Forms
+-- Fully Idempotent with DROP POLICY IF EXISTS
 
 CREATE TABLE IF NOT EXISTS public.quizzes (
   id TEXT PRIMARY KEY,
@@ -104,23 +105,42 @@ ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homework_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+-- Quizzes Policies
+DROP POLICY IF EXISTS "Read Public Quizzes" ON public.quizzes;
+DROP POLICY IF EXISTS "Insert Own Quiz" ON public.quizzes;
+DROP POLICY IF EXISTS "Update Own Quiz" ON public.quizzes;
+DROP POLICY IF EXISTS "Delete Own Quiz" ON public.quizzes;
 CREATE POLICY "Read Public Quizzes" ON public.quizzes FOR SELECT USING (is_public = true OR creator_id = auth.uid() OR auth.uid() IS NOT NULL);
 CREATE POLICY "Insert Own Quiz" ON public.quizzes FOR INSERT WITH CHECK (auth.uid() = creator_id OR creator_id IS NULL);
 CREATE POLICY "Update Own Quiz" ON public.quizzes FOR UPDATE USING (auth.uid() = creator_id OR creator_id IS NULL);
 CREATE POLICY "Delete Own Quiz" ON public.quizzes FOR DELETE USING (auth.uid() = creator_id OR creator_id IS NULL);
 
+-- Quiz Attempts Policies
+DROP POLICY IF EXISTS "Read Own Attempts" ON public.quiz_attempts;
+DROP POLICY IF EXISTS "Insert Attempt" ON public.quiz_attempts;
 CREATE POLICY "Read Own Attempts" ON public.quiz_attempts FOR SELECT USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.quizzes WHERE id = quiz_id AND creator_id = auth.uid()));
 CREATE POLICY "Insert Attempt" ON public.quiz_attempts FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
 
+-- Question Bank Policies
+DROP POLICY IF EXISTS "Read Question Bank" ON public.question_bank;
+DROP POLICY IF EXISTS "Insert Question Bank" ON public.question_bank;
 CREATE POLICY "Read Question Bank" ON public.question_bank FOR SELECT USING (creator_id = auth.uid() OR auth.uid() IS NOT NULL);
 CREATE POLICY "Insert Question Bank" ON public.question_bank FOR INSERT WITH CHECK (creator_id = auth.uid() OR creator_id IS NULL);
 
+-- Classrooms Policies
+DROP POLICY IF EXISTS "Read Classrooms" ON public.classrooms;
+DROP POLICY IF EXISTS "Teacher Manage Classrooms" ON public.classrooms;
 CREATE POLICY "Read Classrooms" ON public.classrooms FOR SELECT USING (true);
 CREATE POLICY "Teacher Manage Classrooms" ON public.classrooms FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
 
+-- Homework Policies
+DROP POLICY IF EXISTS "Read Homework" ON public.homework_assignments;
+DROP POLICY IF EXISTS "Teacher Manage Homework" ON public.homework_assignments;
 CREATE POLICY "Read Homework" ON public.homework_assignments FOR SELECT USING (true);
 CREATE POLICY "Teacher Manage Homework" ON public.homework_assignments FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
 
+-- Notifications Policies
+DROP POLICY IF EXISTS "Read Notifications" ON public.notifications;
 CREATE POLICY "Read Notifications" ON public.notifications FOR SELECT USING (user_id = auth.uid()::text OR user_id = 'all');
 
 CREATE OR REPLACE FUNCTION public.increment_quiz_play_count(p_quiz_id TEXT)
