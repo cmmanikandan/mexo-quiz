@@ -1,11 +1,10 @@
--- ====================================================================
--- MEXO QUIZ — PRODUCTION SUPABASE DATABASE SCHEMA
--- Shared Supabase Project with MEXO Mail & MEXO Forms
--- URL: https://vnbixduiwsvepvtybygy.supabase.co
--- Fully Idempotent (Safe to run multiple times)
--- ====================================================================
+-- Set safe timeouts to prevent SQL Editor lock contention
+SET lock_timeout = '10s';
+SET statement_timeout = '30s';
 
+-- ====================================================================
 -- 1. Enable Required Extensions
+-- ====================================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -154,6 +153,11 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   certificate_url TEXT,
   completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Idempotent column additions for existing installations
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS correct_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS incorrect_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS skipped_count INTEGER NOT NULL DEFAULT 0;
 
 -- ====================================================================
 -- 6. QUESTION BANK TABLE

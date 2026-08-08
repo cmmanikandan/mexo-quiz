@@ -1,7 +1,11 @@
--- MEXO Quiz Supabase Migration 20260808
+-- MEXO Quiz Supabase Migration 20260808 (Deadlock Safe)
 -- Shares profiles and auth with MEXO Mail & MEXO Forms
--- Fully Idempotent with DROP POLICY IF EXISTS
+-- Safe to run in Supabase SQL Editor even with active concurrent app users
 
+SET lock_timeout = '10s';
+SET statement_timeout = '30s';
+
+-- 1. TABLES CREATION
 CREATE TABLE IF NOT EXISTS public.quizzes (
   id TEXT PRIMARY KEY,
   creator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -39,7 +43,7 @@ CREATE TABLE IF NOT EXISTS public.quiz_attempts (
   completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Idempotent column additions for existing tables
+-- Idempotent Column Additions
 ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS correct_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS incorrect_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE public.quiz_attempts ADD COLUMN IF NOT EXISTS skipped_count INTEGER NOT NULL DEFAULT 0;
@@ -120,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- INDEXES FOR HIGH PERFORMANCE
+-- 2. INDEXES
 CREATE INDEX IF NOT EXISTS idx_quizzes_creator ON public.quizzes(creator_id);
 CREATE INDEX IF NOT EXISTS idx_quizzes_public ON public.quizzes(is_public);
 CREATE INDEX IF NOT EXISTS idx_quizzes_created ON public.quizzes(created_at DESC);
@@ -131,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_homework_class ON public.homework_assignments(cla
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_live_sessions_code ON public.live_sessions(code);
 
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- 3. ENABLE RLS
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quiz_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
@@ -141,7 +145,7 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.live_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.live_participants ENABLE ROW LEVEL SECURITY;
 
--- Quizzes Policies
+-- 4. RLS POLICIES (DROP & RE-CREATE SAFELY)
 DROP POLICY IF EXISTS "Read Public Quizzes" ON public.quizzes;
 DROP POLICY IF EXISTS "Insert Own Quiz" ON public.quizzes;
 DROP POLICY IF EXISTS "Update Own Quiz" ON public.quizzes;
@@ -151,28 +155,25 @@ CREATE POLICY "Insert Own Quiz" ON public.quizzes FOR INSERT WITH CHECK (auth.ui
 CREATE POLICY "Update Own Quiz" ON public.quizzes FOR UPDATE USING (auth.uid() = creator_id OR creator_id IS NULL);
 CREATE POLICY "Delete Own Quiz" ON public.quizzes FOR DELETE USING (auth.uid() = creator_id OR creator_id IS NULL);
 
--- Quiz Attempts Policies
 DROP POLICY IF EXISTS "Read Own Attempts" ON public.quiz_attempts;
 DROP POLICY IF EXISTS "Insert Attempt" ON public.quiz_attempts;
-CREATE POLICY "Read Own Attempts" ON public.quiz_attempts FOR SELECT USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.quizzes WHERE id = quiz_id AND creator_id = auth.uid()));
+CREATE POLICY "Read Own Attempts" ON public.quiz_attempts FOR SELECT USING (user_id = auth.uid() OR user_id IS NULL);
 CREATE POLICY "Insert Attempt" ON public.quiz_attempts FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
 
--- Live Sessions Policies
 DROP POLICY IF EXISTS "Read Live Sessions" ON public.live_sessions;
 DROP POLICY IF EXISTS "Manage Live Sessions" ON public.live_sessions;
 CREATE POLICY "Read Live Sessions" ON public.live_sessions FOR SELECT USING (true);
 CREATE POLICY "Manage Live Sessions" ON public.live_sessions FOR ALL USING (host_id = auth.uid() OR host_id IS NULL);
 
--- Live Participants Policies
 DROP POLICY IF EXISTS "Read Live Participants" ON public.live_participants;
 DROP POLICY IF EXISTS "Manage Live Participants" ON public.live_participants;
 CREATE POLICY "Read Live Participants" ON public.live_participants FOR SELECT USING (true);
 CREATE POLICY "Manage Live Participants" ON public.live_participants FOR ALL USING (true);
 
--- Notifications Policies
 DROP POLICY IF EXISTS "Read Notifications" ON public.notifications;
 CREATE POLICY "Read Notifications" ON public.notifications FOR SELECT USING (user_id = auth.uid()::text OR user_id = 'all');
 
+-- 5. RPC FUNCTIONS
 CREATE OR REPLACE FUNCTION public.increment_quiz_play_count(p_quiz_id TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -184,4 +185,3 @@ BEGIN
   WHERE id = p_quiz_id;
 END;
 $$;
-
