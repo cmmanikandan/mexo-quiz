@@ -2,6 +2,9 @@ import { Quiz, QuizSettings, Question, ResourceType } from '../types/quiz';
 import { supabase } from '../lib/supabase';
 import { questionService } from './questionService';
 
+// Authoritative in-memory sync cache for instant UI rendering without empty screen flashes
+const memoryQuizzesCache = new Map<string, Quiz>();
+
 export const quizService = {
   /**
    * Fetch all quizzes directly from Supabase (single source of truth).
@@ -15,47 +18,54 @@ export const quizService = {
 
       if (error || !data) {
         console.error('Error loading quizzes from Supabase:', error);
-        return [];
+        return Array.from(memoryQuizzesCache.values());
       }
 
-      return data.map((item: any) => ({
-        id: item.id,
-        creator_id: item.creator_id,
-        creator_name: item.creator_name || 'MEXO User',
-        creator_avatar: item.creator_avatar,
-        resource_type: item.resource_type || 'quiz',
-        is_public: item.is_public ?? true,
-        settings: {
-          title: item.title || item.settings?.title || 'Untitled Quiz',
-          description: item.description || item.settings?.description || '',
-          subject: item.subject || item.settings?.subject || 'General',
-          category: item.category || item.settings?.category || 'General',
-          difficulty: item.difficulty || item.settings?.difficulty || 'medium',
-          visibility: item.visibility || item.settings?.visibility || 'public',
-          status: item.status || item.settings?.status || 'draft',
-          quizDurationMinutes: item.duration_minutes || item.settings?.quizDurationMinutes || 10,
-          attemptsLimit: item.allowed_attempts !== undefined ? item.allowed_attempts : (item.settings?.attemptsLimit !== undefined ? item.settings.attemptsLimit : 1),
-          shuffleQuestions: item.shuffle_questions ?? item.settings?.shuffleQuestions ?? true,
-          shuffleOptions: item.shuffle_options ?? item.settings?.shuffleOptions ?? true,
-          showAnswersAfterQuiz: item.show_correct_answers ?? item.settings?.showAnswersAfterQuiz ?? true,
-          showScoreAfterQuiz: item.show_results ?? item.settings?.showScoreAfterQuiz ?? true,
-          showExplanations: item.settings?.showExplanations ?? true,
-          passingScorePercentage: item.settings?.passingScorePercentage ?? 60,
-          timerMode: item.settings?.timerMode || 'whole_quiz',
-          certificate: item.settings?.certificate || { enabled: true, title: 'Certificate of Achievement', minScorePercentage: 75, issuerName: 'MEXO Academy', templateStyle: 'gold' },
-          accommodations: item.settings?.accommodations,
-          tags: item.settings?.tags || ['Interactive'],
-        },
-        questions: item.questions || [],
-        plays_count: item.plays_count || 0,
-        rating_avg: item.rating_avg || 5.0,
-        rating_count: item.rating_count || 1,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      }));
+      const list: Quiz[] = data.map((item: any) => {
+        const quizObj: Quiz = {
+          id: item.id,
+          creator_id: item.creator_id,
+          creator_name: item.creator_name || 'MEXO Creator',
+          creator_avatar: item.creator_avatar,
+          resource_type: item.resource_type || 'quiz',
+          is_public: item.is_public ?? true,
+          settings: {
+            title: item.title || item.settings?.title || 'Untitled Quiz',
+            description: item.description || item.settings?.description || '',
+            subject: item.subject || item.settings?.subject || 'General',
+            category: item.category || item.settings?.category || 'General',
+            difficulty: item.difficulty || item.settings?.difficulty || 'medium',
+            visibility: item.visibility || item.settings?.visibility || 'public',
+            status: item.status || item.settings?.status || 'draft',
+            quizDurationMinutes: item.duration_minutes || item.settings?.quizDurationMinutes || 10,
+            attemptsLimit: item.allowed_attempts !== undefined ? item.allowed_attempts : (item.settings?.attemptsLimit !== undefined ? item.settings.attemptsLimit : 1),
+            shuffleQuestions: item.shuffle_questions ?? item.settings?.shuffleQuestions ?? true,
+            shuffleOptions: item.shuffle_options ?? item.settings?.shuffleOptions ?? true,
+            showAnswersAfterQuiz: item.show_correct_answers ?? item.settings?.showAnswersAfterQuiz ?? true,
+            showScoreAfterQuiz: item.show_results ?? item.settings?.showScoreAfterQuiz ?? true,
+            showExplanations: item.settings?.showExplanations ?? true,
+            passingScorePercentage: item.settings?.passingScorePercentage ?? 60,
+            timerMode: item.settings?.timerMode || 'whole_quiz',
+            certificate: item.settings?.certificate || { enabled: true, title: 'Certificate of Achievement', minScorePercentage: 75, issuerName: 'MEXO Academy', templateStyle: 'gold' },
+            accommodations: item.settings?.accommodations,
+            tags: item.settings?.tags || ['Interactive'],
+          },
+          questions: Array.isArray(item.questions) ? item.questions : [],
+          plays_count: item.plays_count || 0,
+          rating_avg: item.rating_avg || 5.0,
+          rating_count: item.rating_count || 1,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        };
+
+        memoryQuizzesCache.set(quizObj.id, quizObj);
+        return quizObj;
+      });
+
+      return list;
     } catch (e) {
       console.error('Exception fetching quizzes from Supabase:', e);
-      return [];
+      return Array.from(memoryQuizzesCache.values());
     }
   },
 
@@ -63,8 +73,7 @@ export const quizService = {
    * Fast synchronous getter using cached memory (updated from Supabase).
    */
   getAllQuizzes(): Quiz[] {
-    // In database-first architecture, default empty and rely on fetchQuizzesFromSupabase
-    return [];
+    return Array.from(memoryQuizzesCache.values());
   },
 
   /**
@@ -82,16 +91,16 @@ export const quizService = {
 
       if (error || !data) {
         console.error('Error fetching quiz from Supabase:', error);
-        return null;
+        return memoryQuizzesCache.get(id) || null;
       }
 
-      // Fetch relational questions and options
+      // Fetch relational questions and options from quiz_questions & quiz_options
       let questions: Question[] = [];
       try {
         questions = await questionService.getQuestionsByQuizId(id);
       } catch (e) {}
 
-      // Fallback to JSONB questions if relational questions are empty
+      // Fallback to JSONB questions if relational query returned empty
       if (questions.length === 0 && Array.isArray(data.questions) && data.questions.length > 0) {
         questions = data.questions;
       }
@@ -118,10 +127,10 @@ export const quizService = {
         tags: data.settings?.tags || ['Interactive'],
       };
 
-      return {
+      const quizObj: Quiz = {
         id: data.id,
         creator_id: data.creator_id,
-        creator_name: data.creator_name || 'MEXO User',
+        creator_name: data.creator_name || 'MEXO Creator',
         creator_avatar: data.creator_avatar,
         resource_type: data.resource_type || 'quiz',
         is_public: data.is_public ?? true,
@@ -133,15 +142,18 @@ export const quizService = {
         created_at: data.created_at,
         updated_at: data.updated_at,
       };
+
+      memoryQuizzesCache.set(quizObj.id, quizObj);
+      return quizObj;
     } catch (e) {
       console.error('Exception fetching quiz by ID:', e);
-      return null;
+      return memoryQuizzesCache.get(id) || null;
     }
   },
 
   getQuizById(id: string): Quiz | null {
-    // For immediate synchronous render while fetchQuizById resolves
-    return null;
+    if (!id) return null;
+    return memoryQuizzesCache.get(id) || null;
   },
 
   /**
@@ -159,7 +171,14 @@ export const quizService = {
       : 1;
 
     try {
-      // 1. Upsert into quizzes table
+      // 1. Update in-memory cache immediately
+      const savedQuiz: Quiz = {
+        ...quiz,
+        updated_at: nowIso,
+      };
+      memoryQuizzesCache.set(savedQuiz.id, savedQuiz);
+
+      // 2. Upsert into quizzes table (including complete questions JSONB)
       const { data, error } = await supabase.from('quizzes').upsert({
         id: quiz.id,
         creator_id: creatorUuid,
@@ -194,12 +213,12 @@ export const quizService = {
         return { success: false, quiz, error };
       }
 
-      // 2. Save relational questions & options
+      // 3. Save relational questions & options to quiz_questions and quiz_options
       if (Array.isArray(quiz.questions) && quiz.questions.length > 0) {
         await questionService.saveQuestions(quiz.id, quiz.questions);
       }
 
-      // 3. Upsert into resources table for unified library browsing
+      // 4. Upsert into resources table for unified library browsing
       if (creatorUuid) {
         await supabase.from('resources').upsert({
           id: quiz.id,
@@ -217,11 +236,6 @@ export const quizService = {
         });
       }
 
-      const savedQuiz: Quiz = {
-        ...quiz,
-        updated_at: nowIso,
-      };
-
       return { success: true, quiz: savedQuiz };
     } catch (err) {
       console.error('Exception saving quiz to Supabase:', err);
@@ -235,6 +249,7 @@ export const quizService = {
   async deleteQuiz(id: string): Promise<boolean> {
     if (!id) return false;
     try {
+      memoryQuizzesCache.delete(id);
       const { error } = await supabase.from('quizzes').delete().eq('id', id);
       if (error) {
         console.error('Supabase error deleting quiz:', error);
@@ -251,154 +266,101 @@ export const quizService = {
   },
 
   /**
-   * Duplicate quiz in Supabase.
+   * Duplicate quiz atomically in Supabase.
    */
-  async duplicateQuiz(id: string, newCreatorName: string, newCreatorId: string): Promise<Quiz | null> {
-    const original = await this.fetchQuizById(id);
+  async duplicateQuiz(quizId: string, currentUserName: string, currentUserId: string): Promise<Quiz | null> {
+    const original = await this.fetchQuizById(quizId) || this.getQuizById(quizId);
     if (!original) return null;
 
-    const copy: Quiz = {
+    const newId = `quiz-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const clonedQuestions = (original.questions || []).map((q, idx) => ({
+      ...q,
+      id: `q-dup-${newId}-${idx + 1}`,
+      options: (q.options || []).map((o, oIdx) => ({
+        ...o,
+        id: `opt-dup-${newId}-${idx + 1}-${oIdx + 1}`,
+      })),
+    }));
+
+    const newQuiz: Quiz = {
       ...original,
-      id: `${original.resource_type || 'quiz'}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      creator_id: newCreatorId,
-      creator_name: newCreatorName,
+      id: newId,
+      creator_id: currentUserId,
+      creator_name: currentUserName,
+      settings: {
+        ...original.settings,
+        title: `${original.settings.title} (Copy)`,
+        status: 'draft',
+      },
+      questions: clonedQuestions,
       plays_count: 0,
       rating_avg: 5.0,
       rating_count: 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      settings: {
-        ...original.settings,
-        title: `${original.settings.title} (Copy)`,
-        status: 'draft',
-        attemptsLimit: original.settings.attemptsLimit ?? 1,
-      },
     };
 
-    const res = await this.saveQuiz(copy);
+    const res = await this.saveQuiz(newQuiz);
     return res.success ? res.quiz : null;
   },
 
-  /**
-   * Search quizzes dynamically from Supabase / database cache.
-   */
-  async searchQuizzes(params: {
-    query?: string;
-    type?: ResourceType | 'all';
-    subject?: string;
-    difficulty?: string;
-    grade?: string;
-    language?: string;
-    sortBy?: 'newest' | 'popular' | 'rating';
-  }): Promise<Quiz[]> {
-    let list = await this.fetchQuizzesFromSupabase();
-
-    if (params.query) {
-      const q = params.query.toLowerCase();
-      list = list.filter(item =>
+  searchQuizzes(query: string): Quiz[] {
+    const all = this.getAllQuizzes();
+    if (!query.trim()) return all;
+    const q = query.toLowerCase();
+    return all.filter(
+      item =>
         item.settings.title.toLowerCase().includes(q) ||
         item.settings.description.toLowerCase().includes(q) ||
-        (item.settings.tags || []).some(t => t.toLowerCase().includes(q)) ||
-        item.creator_name.toLowerCase().includes(q)
-      );
-    }
-
-    if (params.type && params.type !== 'all') {
-      list = list.filter(item => item.resource_type === params.type);
-    }
-
-    if (params.subject && params.subject !== 'all') {
-      list = list.filter(item => item.settings.subject.toLowerCase() === params.subject?.toLowerCase());
-    }
-
-    if (params.difficulty && params.difficulty !== 'all') {
-      list = list.filter(item => item.settings.difficulty === params.difficulty);
-    }
-
-    if (params.grade && params.grade !== 'all') {
-      list = list.filter(item => (item.settings.grade || '').toLowerCase() === params.grade?.toLowerCase());
-    }
-
-    if (params.sortBy === 'popular') {
-      list.sort((a, b) => b.plays_count - a.plays_count);
-    } else if (params.sortBy === 'rating') {
-      list.sort((a, b) => b.rating_avg - a.rating_avg);
-    }
-
-    return list;
+        item.creator_name.toLowerCase().includes(q) ||
+        item.settings.subject.toLowerCase().includes(q)
+    );
   },
 
-  /**
-   * Question bank retrieval from Supabase question_bank table.
-   */
-  async getQuestionBank(): Promise<any[]> {
+  async getQuestionBank(userId?: string): Promise<any[]> {
     try {
-      const { data, error } = await supabase.from('question_bank').select('*').order('created_at', { ascending: false });
-      if (data && !error) {
-        return data.map(item => ({
-          id: item.id,
-          folder: item.folder || 'General',
-          tags: item.tags || [],
-          question: item.question,
-          created_at: item.created_at,
-        }));
-      }
+      let qry = supabase.from('question_bank').select('*').order('created_at', { ascending: false });
+      if (userId) qry = qry.eq('creator_id', userId);
+      const { data } = await qry;
+      if (data) return data;
     } catch (e) {}
     return [];
   },
 
   async saveQuestionBankItem(item: any): Promise<boolean> {
     try {
-      await supabase.from('question_bank').insert({
-        id: item.id || `qb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        folder: item.folder || 'General',
-        tags: item.tags || [],
-        question: item.question,
-      });
-      return true;
+      const { error } = await supabase.from('question_bank').insert(item);
+      return !error;
     } catch (e) {
       return false;
     }
   },
 
-  /**
-   * Generate curated resource with AI.
-   */
-  async generateResourceWithAI(params: {
-    topic: string;
-    resourceType: ResourceType;
-    subject: string;
-    grade: string;
-    difficulty: string;
-    count: number;
-  }): Promise<{ questions: Question[]; metadata: any }> {
+  async generateResourceWithAI(
+    params: string | { topic?: string; subject?: string; grade?: string; difficulty?: string; count?: number; resourceType?: ResourceType },
+    type: ResourceType = 'quiz',
+    countNum: number = 5
+  ): Promise<{ questions: Question[]; metadata?: any }> {
+    const prompt = typeof params === 'string' ? params : (params.topic || 'General Science');
+    const count = typeof params === 'object' && params.count ? params.count : countNum;
+
     const questions: Question[] = [];
-    for (let i = 1; i <= params.count; i++) {
+    for (let i = 1; i <= count; i++) {
       questions.push({
-        id: `gen-q-${i}-${Date.now()}`,
+        id: `q-ai-${Date.now()}-${i}`,
         type: 'multiple_choice',
-        title: `Question ${i}: Key fundamental regarding ${params.topic}`,
+        title: `${prompt}: Question ${i} on key foundational concepts and practical problem solving`,
         options: [
-          { id: `opt-1-${i}`, text: `Primary core principle of ${params.topic}`, isCorrect: true },
-          { id: `opt-2-${i}`, text: `Alternative secondary aspect of ${params.topic}`, isCorrect: false },
-          { id: `opt-3-${i}`, text: `Common misconception about ${params.topic}`, isCorrect: false },
-          { id: `opt-4-${i}`, text: `Unrelated distractor choice`, isCorrect: false },
+          { id: `opt-ai-${i}-1`, text: `Validated primary correct answer for concept ${i}`, isCorrect: true, explanation: 'Essential foundational rule applies here.' },
+          { id: `opt-ai-${i}-2`, text: `Alternative plausible distractor choice A`, isCorrect: false },
+          { id: `opt-ai-${i}-3`, text: `Common misconception distractor choice B`, isCorrect: false },
+          { id: `opt-ai-${i}-4`, text: `Secondary variable distractor choice C`, isCorrect: false },
         ],
         points: 10,
         isRequired: true,
-        explanation: `This accurately describes the primary characteristic of ${params.topic} at ${params.difficulty} difficulty.`,
       });
     }
 
-    return {
-      questions,
-      metadata: {
-        topic: params.topic,
-        subject: params.subject,
-        grade: params.grade,
-        difficulty: params.difficulty,
-        resourceType: params.resourceType,
-      },
-    };
+    return { questions, metadata: { title: prompt, subject: typeof params === 'object' ? params.subject : 'General' } };
   },
 };

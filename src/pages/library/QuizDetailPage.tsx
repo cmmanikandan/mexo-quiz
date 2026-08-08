@@ -73,11 +73,14 @@ export const QuizDetailPage: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(!quiz);
+
   useEffect(() => {
     if (id) {
       quizService.fetchQuizById(id).then(fetched => {
         if (fetched) setQuiz(fetched);
-      });
+        setIsLoadingQuiz(false);
+      }).catch(() => setIsLoadingQuiz(false));
 
       attemptService.fetchAttemptsFromSupabase(undefined, id).then(list => {
         setAttempts(list.filter(a => a.quiz_id === id));
@@ -90,6 +93,17 @@ export const QuizDetailPage: React.FC = () => {
   }, [id]);
 
   useDocumentTitle(`${quiz?.settings?.title || 'Quiz Details'} — MEXO Quiz`);
+
+  if (isLoadingQuiz) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 space-y-3">
+        <div className="w-10 h-10 rounded-2xl bg-purple-100 text-[#7C3AED] flex items-center justify-center animate-spin">
+          <Clock className="w-5 h-5" />
+        </div>
+        <p className="text-xs font-extrabold text-slate-700">Loading quiz from Supabase...</p>
+      </div>
+    );
+  }
 
   if (!quiz) {
     return (
