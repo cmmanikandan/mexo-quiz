@@ -1,0 +1,16 @@
+{
+  "short_name": "MEXO Quiz",
+  "name": "MEXO Quiz — Learn. Play. Compete. Improve.",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F6F8FC",
+  "theme_color": "#7C3AED",
+  "display": "standalone",
+  "orientation": "portrait"
+}
