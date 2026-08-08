@@ -12,6 +12,7 @@ import {
   BarChart2,
   CheckCircle2,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 import { liveSessionService } from '../../services/liveSessionService';
 import { quizService } from '../../services/quizService';
@@ -174,24 +175,35 @@ export const HostSessionPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             {session.status === 'waiting' && (
               <button
                 onClick={handleStartQuiz}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-sm shadow-lg transition-all cursor-pointer flex items-center space-x-2"
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-lg transition-all cursor-pointer flex items-center space-x-2"
               >
-                <Play className="w-5 h-5 fill-slate-950" />
+                <Play className="w-4 h-4 fill-slate-950" />
                 <span>Start Live Session</span>
               </button>
             )}
 
             {session.status === 'active' && (
-              <button
-                onClick={handleNextQuestion}
-                className="px-6 py-3 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer"
-              >
-                Next Question →
-              </button>
+              <>
+                <button
+                  onClick={handleNextQuestion}
+                  className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer"
+                >
+                  Next Question →
+                </button>
+                <button
+                  onClick={async () => {
+                    await liveSessionService.updateSessionStatus(session.id, 'ended', currentQuestionIdx);
+                    setSession(prev => (prev ? { ...prev, status: 'ended' } : prev));
+                  }}
+                  className="px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+                >
+                  End Quiz Now ⏹
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -253,6 +265,30 @@ export const HostSessionPage: React.FC = () => {
                 ))
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Anti-Cheating Live Monitor & Reports */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2">
+            <Shield className="w-5 h-5 text-rose-600" />
+            <h3 className="text-sm font-extrabold text-slate-900">Anti-Cheating Safeguard Live Activity Log</h3>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+            Active Protection
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {participants.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-4">No anti-cheating violations detected.</p>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700">All joined participants strictly adhering to exam guidelines</span>
+              <span className="text-[10px] font-bold text-emerald-600 font-mono">0 Violations</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

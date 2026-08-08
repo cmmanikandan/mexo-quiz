@@ -209,7 +209,7 @@ export const DiscoverPage: React.FC = () => {
             {filteredResources.map(q => (
               <div
                 key={q.id}
-                onClick={() => navigate(`/quiz/${q.id}`)}
+                onClick={() => navigate(`/library/${q.id}`)}
                 className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
               >
                 <div>

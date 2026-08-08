@@ -25,6 +25,8 @@ import { AccountPage } from './pages/account/AccountPage';
 import { AdminConsolePage } from './pages/admin/AdminConsolePage';
 import { ActivityPage } from './pages/activity/ActivityPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
+import { NotificationsPage } from './pages/notifications/NotificationsPage';
+import { QuizDetailPage } from './pages/library/QuizDetailPage';
 
 import { QuizBuilder } from './components/builder/QuizBuilder';
 import { QuizPlayer } from './components/player/QuizPlayer';
@@ -85,6 +87,26 @@ export const AppContent: React.FC = () => {
           <ProtectedRoute>
             <AppShell>
               <QuizLibraryPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/library/:id"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <QuizDetailPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <NotificationsPage />
             </AppShell>
           </ProtectedRoute>
         }

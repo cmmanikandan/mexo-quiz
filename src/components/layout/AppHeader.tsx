@@ -99,9 +99,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onHamburger, onOpenCreate 
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
                 <span className="font-extrabold text-xs text-slate-900">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold text-[#7C3AED]">{unreadCount} new</span>
-                )}
+                <button
+                  onClick={() => navigate('/notifications')}
+                  className="text-[10px] font-bold text-[#7C3AED] hover:underline cursor-pointer"
+                >
+                  View All ({notifications.length}) →
+                </button>
               </div>
               <div className="max-h-64 overflow-y-auto space-y-1 py-1">
                 {notifications.length === 0 ? (

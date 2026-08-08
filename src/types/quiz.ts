@@ -166,6 +166,12 @@ export interface QuizSettings {
   showCorrectAnswerImmediately?: boolean;
   allowRetakes?: boolean;
   gradeLevel?: string;
+  pacingMode?: 'teacher_led' | 'student_paced';
+  enableTabSwitchDetection?: boolean;
+  enforceFullscreen?: boolean;
+  preventCopyPaste?: boolean;
+  maxAllowedViolations?: number;
+  joinCode?: string;
 }
 
 export interface Quiz {

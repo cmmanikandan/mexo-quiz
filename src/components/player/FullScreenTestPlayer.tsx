@@ -26,6 +26,7 @@ import {
   Maximize,
   HelpCircle,
   Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface FullScreenTestPlayerProps {
@@ -66,6 +67,12 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const [isNetworkOffline, setIsNetworkOffline] = useState(!navigator.onLine);
   const [showMobileOverflow, setShowMobileOverflow] = useState(false);
 
+  // Anti-Cheating violation tracking
+  const [cheatingViolations, setCheatingViolations] = useState(0);
+  const [showCheatingWarning, setShowCheatingWarning] = useState(false);
+  const maxAllowedViolations = quiz.settings?.maxAllowedViolations || 3;
+  const isAntiCheatingEnabled = !!quiz.settings?.enableTabSwitchDetection && !isTeacherPreview;
+
   // Timer setup: restore remaining seconds from local storage if available
   const durationSeconds = (quiz.settings?.quizDurationMinutes || 15) * 60;
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
@@ -103,6 +110,27 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Anti-Cheating: Tab Switch & Window Blur Detection
+  useEffect(() => {
+    if (!isAntiCheatingEnabled) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setCheatingViolations(prev => {
+          const next = prev + 1;
+          setShowCheatingWarning(true);
+          if (next >= maxAllowedViolations) {
+            handleFinalSubmit();
+          }
+          return next;
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAntiCheatingEnabled, maxAllowedViolations]);
 
   // Countdown timer effect & auto-submit
   useEffect(() => {
@@ -184,7 +212,23 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-950 text-slate-100 z-50 flex flex-col select-none overflow-hidden font-sans">
-      {/* Network Offline Alert */}
+      {/* Anti-Cheating Violation Warning Banner */}
+      {showCheatingWarning && (
+        <div className="bg-rose-600 text-white px-4 py-2 text-xs font-black flex items-center justify-between shrink-0 shadow-lg animate-bounce">
+          <div className="flex items-center space-x-2">
+            <ShieldAlert className="w-4 h-4 text-yellow-300" />
+            <span>
+              ⚠️ Anti-Cheating Violation: Tab switch detected! (Attempt {cheatingViolations} of {maxAllowedViolations})
+            </span>
+          </div>
+          <button
+            onClick={() => setShowCheatingWarning(false)}
+            className="px-2 py-0.5 rounded-md bg-white/20 hover:bg-white/30 text-white text-[10px] font-extrabold"
+          >
+            Acknowledge
+          </button>
+        </div>
+      )}
       {isNetworkOffline && (
         <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-extrabold flex items-center justify-center space-x-2 shrink-0">
           <WifiOff className="w-4 h-4" />
