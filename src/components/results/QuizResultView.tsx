@@ -54,7 +54,8 @@ export const QuizResultView: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-app-bg p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 select-none">
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 select-none pb-16">
       {/* Top Banner */}
       <div className={`p-6 sm:p-8 rounded-3xl border text-center space-y-4 shadow-mexo-lg ${
         attempt.is_passed
@@ -110,14 +111,14 @@ export const QuizResultView: React.FC = () => {
       {/* Chart & Diagnostics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Performance Bar Chart */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-mexo-card space-y-3">
-          <h3 className="text-sm font-bold text-slate-900">Score vs Required Passing Score</h3>
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-3">
+          <h3 className="text-sm font-bold text-white">Score vs Required Passing Score</h3>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={12} />
-                <Tooltip />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
+                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
+                <Tooltip contentStyle={{ background: '#1e293b', border: 'none', color: '#fff', borderRadius: '12px' }} />
                 <Bar dataKey="value" radius={[12, 12, 0, 0]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -129,22 +130,22 @@ export const QuizResultView: React.FC = () => {
         </div>
 
         {/* Strengths & Weaknesses Analysis */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-mexo-card space-y-4">
-          <h3 className="text-sm font-bold text-slate-900">Performance Breakdown</h3>
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+          <h3 className="text-sm font-bold text-white">Performance Breakdown</h3>
           <div className="space-y-3">
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center space-x-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="p-3.5 rounded-2xl bg-emerald-950/80 border border-emerald-500/30 flex items-center space-x-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-emerald-900">Strong Proficiency Demonstrated</p>
-                <p className="text-[11px] text-emerald-700">Excellent grasp of core concepts and multiple choice items.</p>
+                <p className="text-xs font-bold text-emerald-300">Questions Answered: {Object.keys(attempt.answers || {}).length}</p>
+                <p className="text-[11px] text-emerald-500">Correct: {attempt.correct_count} · Incorrect: {attempt.incorrect_count} · Skipped: {attempt.skipped_count}</p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 flex items-center space-x-3">
-              <Zap className="w-5 h-5 text-[#7C3AED] shrink-0" />
+            <div className="p-3.5 rounded-2xl bg-purple-950/80 border border-purple-500/30 flex items-center space-x-3">
+              <Zap className="w-5 h-5 text-purple-400 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-purple-900">XP & Streak Bonus Applied</p>
-                <p className="text-[11px] text-purple-700">Added {attempt.xp_earned} XP points to your profile total.</p>
+                <p className="text-xs font-bold text-purple-300">XP & Streak Bonus Applied</p>
+                <p className="text-[11px] text-purple-400">+{attempt.xp_earned} XP added · Time: {Math.floor(attempt.time_spent_seconds / 60)}m {attempt.time_spent_seconds % 60}s</p>
               </div>
             </div>
           </div>
@@ -153,31 +154,31 @@ export const QuizResultView: React.FC = () => {
 
       {/* Answer Review Section */}
       {quiz && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-mexo-card space-y-4">
-          <h3 className="text-sm font-bold text-slate-900">Detailed Answer Review</h3>
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+          <h3 className="text-sm font-bold text-white">Detailed Answer Review</h3>
           <div className="space-y-4">
             {quiz.questions.map((q, idx) => {
               const { isCorrect } = attemptService.gradeQuestion(q, attempt.answers[q.id]);
               return (
-                <div key={q.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50 space-y-2">
+                <div key={q.id} className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60 space-y-2">
                   <div className="flex items-start justify-between">
-                    <span className="text-xs font-bold text-slate-800">
+                    <span className="text-xs font-bold text-slate-200">
                       Q{idx + 1}. {q.title}
                     </span>
                     {isCorrect ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center space-x-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 text-[10px] font-bold flex items-center space-x-1">
                         <CheckCircle2 className="w-3 h-3" />
                         <span>Correct</span>
                       </span>
                     ) : (
-                      <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold flex items-center space-x-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-rose-950/80 border border-rose-500/50 text-rose-400 text-[10px] font-bold flex items-center space-x-1">
                         <XCircle className="w-3 h-3" />
                         <span>Incorrect</span>
                       </span>
                     )}
                   </div>
                   {q.explanation && (
-                    <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200 font-sans">
+                    <p className="text-xs text-slate-400 bg-slate-900 p-2.5 rounded-xl border border-slate-800 font-sans">
                       💡 <span className="font-bold">Explanation:</span> {q.explanation}
                     </p>
                   )}
@@ -190,15 +191,23 @@ export const QuizResultView: React.FC = () => {
 
       {/* Footer Navigation Controls */}
       <div className="flex items-center justify-between pt-4">
-        <MexoButton variant="outline" size="md" onClick={() => navigate('/')} leftIcon={<Home className="w-4 h-4" />}>
-          Back to Dashboard
-        </MexoButton>
+        <button
+          onClick={() => navigate('/')}
+          className="px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer flex items-center space-x-2 border border-slate-700"
+        >
+          <Home className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
 
         <div className="flex space-x-2">
           {quiz && (
-            <MexoButton variant="purple" size="md" onClick={() => navigate(`/quiz/${quiz.id}`)} leftIcon={<RotateCcw className="w-4 h-4" />}>
-              Retry Quiz
-            </MexoButton>
+            <button
+              onClick={() => navigate(`/quiz/${quiz.id}`)}
+              className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center space-x-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Retry Quiz</span>
+            </button>
           )}
         </div>
       </div>
@@ -213,6 +222,7 @@ export const QuizResultView: React.FC = () => {
           completedAt={attempt.completed_at}
         />
       )}
+      </div>
     </div>
   );
 };

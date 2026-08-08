@@ -250,14 +250,12 @@ export const AppContent: React.FC = () => {
         }
       />
 
-      {/* Result view */}
+      {/* Result view — standalone, no nav shell */}
       <Route
         path="/result/:attemptId"
         element={
           <ProtectedRoute>
-            <AppShell hideSidebar>
-              <QuizResultView />
-            </AppShell>
+            <QuizResultView />
           </ProtectedRoute>
         }
       />

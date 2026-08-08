@@ -131,11 +131,21 @@ export const attemptService = {
   ): QuizAttempt {
     let earnedPoints = 0;
     let maxPoints = 0;
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let skippedCount = 0;
 
     quiz.questions.forEach(q => {
       maxPoints += q.points;
-      const { pointsEarned } = this.gradeQuestion(q, answers[q.id]);
-      earnedPoints += pointsEarned;
+      const userAnswer = answers[q.id];
+      if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
+        skippedCount++;
+      } else {
+        const { isCorrect, pointsEarned } = this.gradeQuestion(q, userAnswer);
+        earnedPoints += pointsEarned;
+        if (isCorrect) correctCount++;
+        else incorrectCount++;
+      }
     });
 
     const percentage = maxPoints > 0 ? Math.round((earnedPoints / maxPoints) * 100) : 0;
@@ -147,13 +157,16 @@ export const attemptService = {
     const attempt: QuizAttempt = {
       id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       quiz_id: quiz.id,
-      quiz_title: quiz.settings.title,
+      quiz_title: quiz.settings?.title || quiz.title || 'Untitled Quiz',
       user_id: userId,
       user_name: userName,
       user_avatar: userAvatar,
       score: earnedPoints,
       max_score: maxPoints,
       percentage,
+      correct_count: correctCount,
+      incorrect_count: incorrectCount,
+      skipped_count: skippedCount,
       xp_earned: xpEarned,
       time_spent_seconds: timeSpentSeconds,
       answers,
@@ -182,6 +195,9 @@ export const attemptService = {
           score: attempt.score,
           max_score: attempt.max_score,
           percentage: attempt.percentage,
+          correct_count: attempt.correct_count,
+          incorrect_count: attempt.incorrect_count,
+          skipped_count: attempt.skipped_count,
           xp_earned: attempt.xp_earned,
           time_spent_seconds: attempt.time_spent_seconds,
           is_passed: attempt.is_passed,

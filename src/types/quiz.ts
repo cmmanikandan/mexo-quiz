@@ -243,6 +243,9 @@ export interface QuizAttempt {
   score: number;
   max_score: number;
   percentage: number;
+  correct_count: number;
+  incorrect_count: number;
+  skipped_count: number;
   xp_earned: number;
   time_spent_seconds: number;
   answers: Record<string, any>; // questionId -> answer
