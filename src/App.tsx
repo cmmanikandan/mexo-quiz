@@ -32,19 +32,13 @@ import { QuizBuilder } from './components/builder/QuizBuilder';
 import { QuizPlayer } from './components/player/QuizPlayer';
 import { QuizResultView } from './components/results/QuizResultView';
 import { LiveLobby } from './components/live/LiveLobby';
+import { MexoLoadingScreen } from './components/common/MexoLoadingScreen';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, recheckAuth } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-3">
-          <img src="/logo.png" alt="MEXO" className="w-12 h-12 animate-bounce object-contain" />
-          <p className="text-xs font-bold text-slate-300">Connecting to MEXO Account...</p>
-        </div>
-      </div>
-    );
+    return <MexoLoadingScreen message="Connecting to MEXO Account..." onTimeoutRetry={recheckAuth} />;
   }
 
   if (!isAuthenticated) {
