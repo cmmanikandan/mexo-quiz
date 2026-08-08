@@ -1,68 +1,40 @@
-import { ClassRoom, HomeworkAssignment } from '../types/quiz';
+import { ClassRoom, HomeworkAssignment, ClassroomStudent } from '../types/quiz';
+import { supabase } from '../lib/supabase';
 
-const CLASSES_KEY = 'mexo_quiz_classes_v1';
-const ASSIGNMENTS_KEY = 'mexo_quiz_assignments_v1';
-
-export const INITIAL_CLASSES: ClassRoom[] = [
-  {
-    id: 'cls-101',
-    code: 'CS-401',
-    name: 'Advanced Computer Science 401',
-    subject: 'Computer Science',
-    teacher_id: 'mexo-dev-guy',
-    teacher_name: 'Alex Rivera',
-    students_count: 28,
-    created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
-  },
-  {
-    id: 'cls-102',
-    code: 'PHY-302',
-    name: 'Quantum Physics Honors',
-    subject: 'Physics',
-    teacher_id: 'mexo-teacher-01',
-    teacher_name: 'Dr. Evelyn Vance',
-    students_count: 34,
-    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
-  },
-];
-
-export const INITIAL_ASSIGNMENTS: HomeworkAssignment[] = [
-  {
-    id: 'asg-1',
-    quiz_id: 'quiz-js-mastery',
-    quiz_title: 'JavaScript Modern ES6+ & Async Architecture',
-    class_id: 'cls-101',
-    class_name: 'Advanced Computer Science 401',
-    teacher_id: 'mexo-dev-guy',
-    due_date: new Date(Date.now() + 86400000 * 3).toISOString(),
-    attempts_allowed: 2,
-    allow_late_submission: true,
-    auto_remind: true,
-    assigned_at: new Date(Date.now() - 86400000 * 1).toISOString(),
-  },
-  {
-    id: 'asg-2',
-    quiz_id: 'quiz-quantum-physics',
-    quiz_title: 'Quantum Physics & Particle Dynamics',
-    class_id: 'cls-102',
-    class_name: 'Quantum Physics Honors',
-    teacher_id: 'mexo-teacher-01',
-    due_date: new Date(Date.now() + 86400000 * 5).toISOString(),
-    attempts_allowed: 1,
-    allow_late_submission: false,
-    auto_remind: true,
-    assigned_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-];
+const CLASSES_KEY = 'mexo_quiz_classes_v3';
+const ASSIGNMENTS_KEY = 'mexo_quiz_assignments_v3';
+const ENROLLED_KEY = 'mexo_enrolled_classes_v2';
 
 export const classService = {
   getClasses(): ClassRoom[] {
     try {
       const stored = localStorage.getItem(CLASSES_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {}
-    localStorage.setItem(CLASSES_KEY, JSON.stringify(INITIAL_CLASSES));
-    return INITIAL_CLASSES;
+    return [];
+  },
+
+  async fetchClassesFromSupabase(): Promise<ClassRoom[]> {
+    try {
+      const { data, error } = await supabase.from('classrooms').select('*').order('created_at', { ascending: false });
+      if (data && !error) {
+        localStorage.setItem(CLASSES_KEY, JSON.stringify(data));
+        return data as ClassRoom[];
+      }
+    } catch (e) {}
+    return this.getClasses();
+  },
+
+  getClassById(id: string): ClassRoom | null {
+    return this.getClasses().find(c => c.id === id) || null;
+  },
+
+  getClassByCode(code: string): ClassRoom | null {
+    const formatted = code.trim().toUpperCase();
+    return this.getClasses().find(c => c.code.toUpperCase() === formatted) || null;
   },
 
   addClass(c: Omit<ClassRoom, 'id' | 'code' | 'students_count' | 'created_at'>): ClassRoom {
@@ -78,29 +50,104 @@ export const classService = {
     try {
       localStorage.setItem(CLASSES_KEY, JSON.stringify(list));
     } catch (e) {}
+
+    (async () => {
+      try {
+        await supabase.from('classrooms').insert({
+          id: newClass.id,
+          code: newClass.code,
+          name: newClass.name,
+          subject: newClass.subject,
+          teacher_id: newClass.teacher_id,
+          teacher_name: newClass.teacher_name,
+          students_count: newClass.students_count,
+        });
+      } catch (e) {}
+    })();
+
     return newClass;
+  },
+
+  joinClassByCode(code: string, userId: string, userName: string): { success: boolean; message: string; classObj?: ClassRoom } {
+    const cls = this.getClassByCode(code);
+    if (!cls) {
+      return { success: false, message: 'Invalid class code. Please check and try again.' };
+    }
+
+    try {
+      const enrolledRaw = localStorage.getItem(ENROLLED_KEY);
+      const enrolled: string[] = enrolledRaw ? JSON.parse(enrolledRaw) : [];
+      if (!enrolled.includes(cls.id)) {
+        enrolled.push(cls.id);
+        localStorage.setItem(ENROLLED_KEY, JSON.stringify(enrolled));
+      }
+    } catch (e) {}
+
+    (async () => {
+      try {
+        await supabase.from('classroom_students').upsert({
+          class_id: cls.id,
+          student_id: userId,
+          joined_at: new Date().toISOString(),
+        });
+      } catch (e) {}
+    })();
+
+    return { success: true, message: `Successfully joined ${cls.name}!`, classObj: cls };
   },
 
   getAssignments(): HomeworkAssignment[] {
     try {
       const stored = localStorage.getItem(ASSIGNMENTS_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {}
-    localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(INITIAL_ASSIGNMENTS));
-    return INITIAL_ASSIGNMENTS;
+    return [];
   },
 
-  addAssignment(asg: Omit<HomeworkAssignment, 'id' | 'assigned_at'>): HomeworkAssignment {
+  async fetchAssignmentsFromSupabase(): Promise<HomeworkAssignment[]> {
+    try {
+      const { data, error } = await supabase.from('homework_assignments').select('*').order('assigned_at', { ascending: false });
+      if (data && !error) {
+        localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(data));
+        return data as HomeworkAssignment[];
+      }
+    } catch (e) {}
+    return this.getAssignments();
+  },
+
+  addAssignment(asg: Omit<HomeworkAssignment, 'id' | 'assigned_at' | 'status'>): HomeworkAssignment {
     const list = this.getAssignments();
     const newAsg: HomeworkAssignment = {
       ...asg,
       id: `asg-${Date.now()}`,
       assigned_at: new Date().toISOString(),
+      status: 'active',
     };
     list.unshift(newAsg);
     try {
       localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(list));
     } catch (e) {}
+
+    (async () => {
+      try {
+        await supabase.from('homework_assignments').insert({
+          id: newAsg.id,
+          quiz_id: newAsg.quiz_id,
+          quiz_title: newAsg.quiz_title,
+          class_id: newAsg.class_id,
+          class_name: newAsg.class_name,
+          teacher_id: newAsg.teacher_id,
+          due_date: newAsg.due_date,
+          attempts_allowed: newAsg.attempts_allowed,
+          allow_late_submission: newAsg.allow_late_submission,
+          auto_remind: newAsg.auto_remind,
+        });
+      } catch (e) {}
+    })();
+
     return newAsg;
   },
 };

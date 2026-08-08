@@ -156,13 +156,13 @@ export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({ settings, onCh
           <MexoToggle
             label="Shuffle Questions"
             description="Randomize question sequence for every participant."
-            checked={settings.shuffleQuestions}
+            checked={!!settings.shuffleQuestions}
             onCheckedChange={val => update({ shuffleQuestions: val })}
           />
           <MexoToggle
             label="Shuffle Options"
             description="Randomize answer choice order per question."
-            checked={settings.shuffleOptions}
+            checked={!!settings.shuffleOptions}
             onCheckedChange={val => update({ shuffleOptions: val })}
           />
         </div>

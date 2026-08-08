@@ -1,3 +1,16 @@
+export type ResourceType =
+  | 'quiz'
+  | 'assessment'
+  | 'lesson'
+  | 'flashcards'
+  | 'interactive_video'
+  | 'passage'
+  | 'poll'
+  | 'survey'
+  | 'practice';
+
+export type ResourceVisibility = 'private' | 'link' | 'class_only' | 'public';
+
 export type QuestionType =
   | 'multiple_choice'
   | 'multiple_select'
@@ -8,13 +21,17 @@ export type QuestionType =
   | 'dropdown'
   | 'matching'
   | 'ordering'
+  | 'drag_drop'
+  | 'categorize'
+  | 'rating'
   | 'image_question'
   | 'audio_question'
   | 'video_question'
   | 'code_question'
   | 'math_formula'
   | 'poll'
-  | 'hotspot';
+  | 'hotspot'
+  | 'passage';
 
 export type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'expert';
 export type QuizStatus = 'draft' | 'published' | 'scheduled' | 'archived';
@@ -28,6 +45,7 @@ export interface QuestionOption {
   imageUrl?: string;
   explanation?: string;
   matchTarget?: string; // For matching
+  category?: string;    // For categorize
   orderIndex?: number;  // For ordering
 }
 
@@ -40,6 +58,15 @@ export interface HotspotArea {
   isCorrect: boolean;
 }
 
+export interface AccommodationsConfig {
+  extraTimeMultiplier: number; // e.g. 1.5x, 2.0x
+  extraAttemptsCount: number;
+  reducedAnswerChoices: boolean;
+  enableReadAloud: boolean;
+  showHints: boolean;
+  retryIncorrectAnswers: boolean;
+}
+
 export interface Question {
   id: string;
   type: QuestionType;
@@ -47,11 +74,13 @@ export interface Question {
   subtitle?: string;
   mediaUrl?: string; // image, audio, or video URL
   mediaType?: 'image' | 'audio' | 'video';
+  passageText?: string;
   options: QuestionOption[];
   correctAnswers?: string[]; // strings or option IDs
   acceptedBlanks?: string[]; // for fill_blank
   matchingPairs?: { left: string; right: string }[];
   orderingSequence?: string[];
+  categories?: string[];
   hotspotAreas?: HotspotArea[];
   codeLanguage?: string;
   codeStarter?: string;
@@ -61,6 +90,34 @@ export interface Question {
   explanation?: string;
   hint?: string;
   isRequired: boolean;
+}
+
+export interface LessonSlide {
+  id: string;
+  title: string;
+  content: string; // Markdown / HTML text
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'audio';
+  slideType: 'content' | 'question' | 'poll' | 'code' | 'embed';
+  embeddedQuestion?: Question;
+}
+
+export interface Flashcard {
+  id: string;
+  frontText: string;
+  backText: string;
+  frontMediaUrl?: string;
+  backMediaUrl?: string;
+  audioUrl?: string;
+  hint?: string;
+}
+
+export interface VideoMarker {
+  id: string;
+  timestampSeconds: number;
+  title: string;
+  question: Question;
+  pauseVideo: boolean;
 }
 
 export interface CertificateConfig {
@@ -76,33 +133,39 @@ export interface QuizSettings {
   description: string;
   coverImageUrl?: string;
   subject: string;
-  difficulty: DifficultyLevel;
-  language: string;
-  grade: string;
-  tags: string[];
+  difficulty?: DifficultyLevel;
+  language?: string;
+  grade?: string;
+  tags?: string[];
   instructions?: string;
-  status: QuizStatus;
+  status?: QuizStatus;
+  visibility?: ResourceVisibility;
   scheduledPublishDate?: string;
   startDate?: string;
   endDate?: string;
   timeZone?: string;
-  autoClose: boolean;
-  attemptsLimit: number; // 0 = unlimited
-  shuffleQuestions: boolean;
-  shuffleOptions: boolean;
+  autoClose?: boolean;
+  attemptsLimit?: number; // 0 = unlimited
+  shuffleQuestions?: boolean;
+  shuffleOptions?: boolean;
   randomizeSubsetCount?: number;
-  timerMode: TimerMode;
+  timerMode?: TimerMode;
   quizDurationMinutes?: number;
   perQuestionDurationSeconds?: number;
-  leaderboardVisibility: LeaderboardVisibility;
-  showAnswersAfterQuiz: boolean;
-  showScoreAfterQuiz: boolean;
-  showExplanations: boolean;
-  showCorrectAnswersAfterDueDate: boolean;
-  certificate: CertificateConfig;
-  passingScorePercentage: number;
-  negativeMarkingPercentage: number;
-  autoGrading: boolean;
+  leaderboardVisibility?: LeaderboardVisibility;
+  showAnswersAfterQuiz?: boolean;
+  showScoreAfterQuiz?: boolean;
+  showExplanations?: boolean;
+  showCorrectAnswersAfterDueDate?: boolean;
+  certificate?: CertificateConfig;
+  accommodations?: AccommodationsConfig;
+  passingScorePercentage?: number;
+  negativeMarkingPercentage?: number;
+  autoGrading?: boolean;
+  passPercentage?: number;
+  showCorrectAnswerImmediately?: boolean;
+  allowRetakes?: boolean;
+  gradeLevel?: string;
 }
 
 export interface Quiz {
@@ -110,9 +173,14 @@ export interface Quiz {
   creator_id: string;
   creator_name: string;
   creator_avatar?: string;
+  resource_type: ResourceType;
   is_public: boolean;
   settings: QuizSettings;
   questions: Question[];
+  slides?: LessonSlide[];
+  flashcards?: Flashcard[];
+  videoMarkers?: VideoMarker[];
+  videoUrl?: string;
   plays_count: number;
   rating_avg: number;
   rating_count: number;
@@ -134,10 +202,20 @@ export interface ClassRoom {
   code: string;
   name: string;
   subject: string;
+  grade?: string;
+  description?: string;
   teacher_id: string;
   teacher_name: string;
   students_count: number;
   created_at: string;
+}
+
+export interface ClassroomStudent {
+  class_id: string;
+  student_id: string;
+  student_name: string;
+  student_avatar?: string;
+  joined_at: string;
 }
 
 export interface HomeworkAssignment {
@@ -152,6 +230,7 @@ export interface HomeworkAssignment {
   allow_late_submission: boolean;
   auto_remind: boolean;
   assigned_at: string;
+  status: 'active' | 'due_soon' | 'completed' | 'expired';
 }
 
 export interface QuizAttempt {
@@ -170,6 +249,30 @@ export interface QuizAttempt {
   is_passed: boolean;
   certificate_url?: string;
   completed_at: string;
+}
+
+export interface LiveSession {
+  id: string;
+  code: string;
+  quiz_id: string;
+  host_id: string;
+  host_name: string;
+  title: string;
+  status: 'waiting' | 'active' | 'ended';
+  mode: 'classic' | 'team' | 'mastery' | 'test' | 'teacher_paced' | 'student_paced';
+  current_question_index: number;
+  created_at: string;
+}
+
+export interface LiveParticipant {
+  id: string;
+  session_id: string;
+  user_id?: string;
+  name: string;
+  avatar?: string;
+  score: number;
+  answers: Record<string, any>;
+  joined_at: string;
 }
 
 export interface Achievement {
@@ -193,3 +296,4 @@ export interface NotificationItem {
   link?: string;
   created_at: string;
 }
+

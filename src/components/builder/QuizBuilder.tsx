@@ -30,6 +30,7 @@ export const QuizBuilder: React.FC = () => {
     }
     return {
       id: `quiz-${Date.now()}`,
+      resource_type: 'quiz',
       creator_id: profile?.id || 'mexo-user',
       creator_name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : 'Teacher',
       creator_avatar: profile?.avatar_url,

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.quizzes (
   creator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   creator_name TEXT NOT NULL,
   creator_avatar TEXT,
+  resource_type TEXT NOT NULL DEFAULT 'quiz',
   is_public BOOLEAN NOT NULL DEFAULT true,
   settings JSONB NOT NULL DEFAULT '{}'::jsonb,
   questions JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -76,6 +77,30 @@ CREATE TABLE IF NOT EXISTS public.homework_assignments (
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.live_sessions (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  quiz_id TEXT REFERENCES public.quizzes(id) ON DELETE CASCADE,
+  host_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  host_name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'ended')),
+  mode TEXT NOT NULL DEFAULT 'classic',
+  current_question_index INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.live_participants (
+  id TEXT PRIMARY KEY,
+  session_id TEXT REFERENCES public.live_sessions(id) ON DELETE CASCADE,
+  user_id TEXT,
+  name TEXT NOT NULL,
+  avatar TEXT,
+  score INTEGER NOT NULL DEFAULT 0,
+  answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -96,6 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz ON public.quiz_attempts(quiz_i
 CREATE INDEX IF NOT EXISTS idx_classrooms_code ON public.classrooms(code);
 CREATE INDEX IF NOT EXISTS idx_homework_class ON public.homework_assignments(class_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_live_sessions_code ON public.live_sessions(code);
 
 -- ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
@@ -104,6 +130,8 @@ ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homework_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_participants ENABLE ROW LEVEL SECURITY;
 
 -- Quizzes Policies
 DROP POLICY IF EXISTS "Read Public Quizzes" ON public.quizzes;
@@ -121,23 +149,17 @@ DROP POLICY IF EXISTS "Insert Attempt" ON public.quiz_attempts;
 CREATE POLICY "Read Own Attempts" ON public.quiz_attempts FOR SELECT USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.quizzes WHERE id = quiz_id AND creator_id = auth.uid()));
 CREATE POLICY "Insert Attempt" ON public.quiz_attempts FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
 
--- Question Bank Policies
-DROP POLICY IF EXISTS "Read Question Bank" ON public.question_bank;
-DROP POLICY IF EXISTS "Insert Question Bank" ON public.question_bank;
-CREATE POLICY "Read Question Bank" ON public.question_bank FOR SELECT USING (creator_id = auth.uid() OR auth.uid() IS NOT NULL);
-CREATE POLICY "Insert Question Bank" ON public.question_bank FOR INSERT WITH CHECK (creator_id = auth.uid() OR creator_id IS NULL);
+-- Live Sessions Policies
+DROP POLICY IF EXISTS "Read Live Sessions" ON public.live_sessions;
+DROP POLICY IF EXISTS "Manage Live Sessions" ON public.live_sessions;
+CREATE POLICY "Read Live Sessions" ON public.live_sessions FOR SELECT USING (true);
+CREATE POLICY "Manage Live Sessions" ON public.live_sessions FOR ALL USING (host_id = auth.uid() OR host_id IS NULL);
 
--- Classrooms Policies
-DROP POLICY IF EXISTS "Read Classrooms" ON public.classrooms;
-DROP POLICY IF EXISTS "Teacher Manage Classrooms" ON public.classrooms;
-CREATE POLICY "Read Classrooms" ON public.classrooms FOR SELECT USING (true);
-CREATE POLICY "Teacher Manage Classrooms" ON public.classrooms FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
-
--- Homework Policies
-DROP POLICY IF EXISTS "Read Homework" ON public.homework_assignments;
-DROP POLICY IF EXISTS "Teacher Manage Homework" ON public.homework_assignments;
-CREATE POLICY "Read Homework" ON public.homework_assignments FOR SELECT USING (true);
-CREATE POLICY "Teacher Manage Homework" ON public.homework_assignments FOR ALL USING (teacher_id = auth.uid() OR teacher_id IS NULL);
+-- Live Participants Policies
+DROP POLICY IF EXISTS "Read Live Participants" ON public.live_participants;
+DROP POLICY IF EXISTS "Manage Live Participants" ON public.live_participants;
+CREATE POLICY "Read Live Participants" ON public.live_participants FOR SELECT USING (true);
+CREATE POLICY "Manage Live Participants" ON public.live_participants FOR ALL USING (true);
 
 -- Notifications Policies
 DROP POLICY IF EXISTS "Read Notifications" ON public.notifications;
@@ -154,3 +176,4 @@ BEGIN
   WHERE id = p_quiz_id;
 END;
 $$;
+

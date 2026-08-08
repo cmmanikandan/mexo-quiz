@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Quiz, QuizAttempt } from '../../types/quiz';
 import { quizService } from '../../services/quizService';
 import { attemptService } from '../../services/attemptService';
@@ -11,6 +11,10 @@ import { CalculatorModal } from '../common/CalculatorModal';
 import { MathFormulaModal } from '../common/MathFormulaModal';
 import { MexoButton } from '../common/MexoButton';
 import { MexoModal } from '../common/MexoModal';
+import { FullScreenTestPlayer } from './FullScreenTestPlayer';
+import { LessonPlayer } from './LessonPlayer';
+import { FlashcardPlayer } from './FlashcardPlayer';
+import { InteractiveVideoPlayer } from './InteractiveVideoPlayer';
 import {
   Clock, Maximize2, Minimize2, Flag, Calculator, BookOpen, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, Grid
 } from 'lucide-react';
@@ -18,10 +22,14 @@ import {
 export const QuizPlayer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useAuth();
   const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
 
-  const [quiz, setQuiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
+  const searchParams = new URLSearchParams(location.search);
+  const isTestModeParam = searchParams.get('mode') === 'test';
+
+  const [quiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
@@ -39,15 +47,32 @@ export const QuizPlayer: React.FC = () => {
 
   if (!quiz) {
     return (
-      <div className="min-h-screen bg-app-bg flex flex-col items-center justify-center p-4">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Quiz Not Found</h2>
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <h2 className="text-xl font-bold text-white mb-2">Resource Not Found</h2>
         <MexoButton variant="purple" onClick={() => navigate('/library')}>Back to Library</MexoButton>
       </div>
     );
   }
 
-  const currentQ = quiz.questions[currentIndex];
-  const progressPct = Math.round(((currentIndex + 1) / quiz.questions.length) * 100);
+  // Specialized Resource Type Delegates
+  if (quiz.resource_type === 'assessment' || isTestModeParam) {
+    return <FullScreenTestPlayer quiz={quiz} onClose={() => navigate('/')} />;
+  }
+
+  if (quiz.resource_type === 'lesson') {
+    return <LessonPlayer quiz={quiz} />;
+  }
+
+  if (quiz.resource_type === 'flashcards') {
+    return <FlashcardPlayer quiz={quiz} />;
+  }
+
+  if (quiz.resource_type === 'interactive_video') {
+    return <InteractiveVideoPlayer quiz={quiz} />;
+  }
+
+  const currentQ = quiz.questions[currentIndex] || quiz.questions[0];
+  const progressPct = quiz.questions.length > 0 ? Math.round(((currentIndex + 1) / quiz.questions.length) * 100) : 100;
 
   const handleAnswerChange = (ans: any) => {
     setUserAnswers(prev => ({
@@ -146,70 +171,72 @@ export const QuizPlayer: React.FC = () => {
       </div>
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col justify-between max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="space-y-6">
-          {/* Question Header & Flag button */}
-          <div className="flex items-start justify-between bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-            <div>
-              <span className="px-2.5 py-1 rounded-full bg-purple-900/80 text-purple-300 text-[10px] font-extrabold uppercase">
-                {currentQ.type.replace('_', ' ')} · {currentQ.points} Points
-              </span>
-              <h2 className="text-base sm:text-lg font-bold text-white mt-2 leading-snug">
-                {currentQ.title}
-              </h2>
+      {currentQ && (
+        <div className="flex-1 flex flex-col justify-between max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+          <div className="space-y-6">
+            {/* Question Header & Flag button */}
+            <div className="flex items-start justify-between bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
+              <div>
+                <span className="px-2.5 py-1 rounded-full bg-purple-900/80 text-purple-300 text-[10px] font-extrabold uppercase">
+                  {currentQ.type.replace('_', ' ')} · {currentQ.points} Points
+                </span>
+                <h2 className="text-base sm:text-lg font-bold text-white mt-2 leading-snug">
+                  {currentQ.title}
+                </h2>
+              </div>
+              <button
+                onClick={() => toggleFlag(currentQ.id)}
+                className={`p-2 rounded-xl border transition-all ${
+                  flaggedQuestions[currentQ.id]
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                    : 'border-slate-700 text-slate-400 hover:text-white'
+                }`}
+                title="Flag question for review"
+              >
+                <Flag className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => toggleFlag(currentQ.id)}
-              className={`p-2 rounded-xl border transition-all ${
-                flaggedQuestions[currentQ.id]
-                  ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                  : 'border-slate-700 text-slate-400 hover:text-white'
-              }`}
-              title="Flag question for review"
-            >
-              <Flag className="w-4 h-4" />
-            </button>
+
+            {/* Interactive Question Renderer */}
+            <div className="bg-slate-800/50 p-5 rounded-3xl border border-slate-700/60 shadow-xl">
+              <QuestionRenderers
+                question={currentQ}
+                userAnswer={userAnswers[currentQ.id]}
+                onChangeAnswer={handleAnswerChange}
+              />
+            </div>
           </div>
 
-          {/* Interactive Question Renderer */}
-          <div className="bg-slate-800/50 p-5 rounded-3xl border border-slate-700/60 shadow-xl">
-            <QuestionRenderers
-              question={currentQ}
-              userAnswer={userAnswers[currentQ.id]}
-              onChangeAnswer={handleAnswerChange}
-            />
-          </div>
-        </div>
-
-        {/* Bottom Navigation Buttons */}
-        <div className="flex items-center justify-between pt-6 border-t border-slate-800 mt-6">
-          <MexoButton
-            variant="outline"
-            size="md"
-            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentIndex === 0}
-            leftIcon={<ChevronLeft className="w-4 h-4" />}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
-          >
-            Previous
-          </MexoButton>
-
-          {currentIndex < quiz.questions.length - 1 ? (
+          {/* Bottom Navigation Buttons */}
+          <div className="flex items-center justify-between pt-6 border-t border-slate-800 mt-6">
             <MexoButton
-              variant="purple"
+              variant="outline"
               size="md"
-              onClick={() => setCurrentIndex(prev => Math.min(quiz.questions.length - 1, prev + 1))}
-              rightIcon={<ChevronRight className="w-4 h-4" />}
+              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentIndex === 0}
+              leftIcon={<ChevronLeft className="w-4 h-4" />}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
             >
-              Next Question
+              Previous
             </MexoButton>
-          ) : (
-            <MexoButton variant="purple" size="md" onClick={() => setShowSubmitModal(true)}>
-              Review & Submit
-            </MexoButton>
-          )}
+
+            {currentIndex < quiz.questions.length - 1 ? (
+              <MexoButton
+                variant="purple"
+                size="md"
+                onClick={() => setCurrentIndex(prev => Math.min(quiz.questions.length - 1, prev + 1))}
+                rightIcon={<ChevronRight className="w-4 h-4" />}
+              >
+                Next Question
+              </MexoButton>
+            ) : (
+              <MexoButton variant="purple" size="md" onClick={() => setShowSubmitModal(true)}>
+                Review & Submit
+              </MexoButton>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Question Palette Modal */}
       <MexoModal isOpen={showPalette} onClose={() => setShowPalette(false)} title="Question Overview Grid" maxWidth="md">
@@ -265,3 +292,4 @@ export const QuizPlayer: React.FC = () => {
     </div>
   );
 };
+
