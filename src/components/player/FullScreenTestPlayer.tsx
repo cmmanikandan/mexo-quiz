@@ -216,7 +216,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const markedCount = Object.values(markedForReview).filter(Boolean).length;
 
   const currentUserId = profile?.id || user?.id || 'guest';
-  const pastAttempts = attemptService.getUserQuizAttempts(currentUserId, quiz.id);
+  const pastAttempts = attemptService.getUserAttempts(currentUserId).filter(a => a.quiz_id === quiz.id);
   const isAttemptLimitReached =
     !isTeacherPreview &&
     quiz.settings?.attemptsLimit &&
