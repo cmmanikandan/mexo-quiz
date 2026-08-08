@@ -6,6 +6,7 @@ import { attemptService } from '../../services/attemptService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { useTimer } from '../../hooks/useTimer';
+import { audioService } from '../../utils/audioService';
 import { QuestionRenderers } from './QuestionRenderers';
 import { CalculatorModal } from '../common/CalculatorModal';
 import { MathFormulaModal } from '../common/MathFormulaModal';
@@ -39,6 +40,7 @@ export const QuizPlayer: React.FC = () => {
       });
     }
   }, [id, quiz]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
@@ -89,7 +91,11 @@ export const QuizPlayer: React.FC = () => {
   const progressPct = quiz.questions.length > 0 ? Math.round(((currentIndex + 1) / quiz.questions.length) * 100) : 100;
   const quizTitle = quiz.settings?.title || 'Untitled Quiz';
 
+  // Check single attempt / test rules
+  const isSingleAttempt = quiz.settings?.attemptsLimit === 1 || (quiz.resource_type as string) === 'assessment';
+
   const handleAnswerChange = (ans: any) => {
+    audioService.playTickSound();
     setUserAnswers(prev => ({
       ...prev,
       [currentQ.id]: ans,
@@ -104,9 +110,10 @@ export const QuizPlayer: React.FC = () => {
   };
 
   const handleSubmitQuiz = () => {
+    audioService.playVictoryFanfare();
     const timeSpent = Math.max(1, Math.round((Date.now() - startTime) / 1000));
     const attempt = attemptService.submitAttempt(
-      quiz,
+      quiz!,
       profile?.id || 'guest',
       profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : 'Guest User',
       profile?.avatar_url,
@@ -247,7 +254,7 @@ export const QuizPlayer: React.FC = () => {
       <footer className="h-20 border-t border-slate-800 bg-slate-900 px-4 sm:px-8 flex items-center justify-between shrink-0 pb-[env(safe-area-inset-bottom)]">
         <button
           onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-          disabled={currentIndex === 0}
+          disabled={currentIndex === 0 || isSingleAttempt}
           className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 text-xs font-bold cursor-pointer flex items-center space-x-1 border border-slate-700"
         >
           <ChevronLeft className="w-4 h-4" />

@@ -1,9 +1,12 @@
-// Web Audio API Sound Effects Synthesizer for MEXO Quiz
+// Web Audio API Sound Effects & BGM Synthesizer for MEXO Quiz
 // Zero external asset dependencies — crisp, instant audio feedback
 
 class AudioService {
   private ctx: AudioContext | null = null;
   private isEnabled: boolean = true;
+  private bgmOscillator: OscillatorNode | null = null;
+  private bgmGain: GainNode | null = null;
+  private isBgmPlaying: boolean = false;
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -19,10 +22,65 @@ class AudioService {
 
   public setSoundEnabled(enabled: boolean) {
     this.isEnabled = enabled;
+    if (!enabled) {
+      this.stopBGM();
+    }
   }
 
   public isSoundEnabled(): boolean {
     return this.isEnabled;
+  }
+
+  // Play subtle BGM tone
+  public startBGM() {
+    if (!this.isEnabled || this.isBgmPlaying) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now); // Low ambient chord A3
+      gain.gain.setValueAtTime(0.03, now); // Gentle background volume
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      this.bgmOscillator = osc;
+      this.bgmGain = gain;
+      this.isBgmPlaying = true;
+    } catch (e) {}
+  }
+
+  public stopBGM() {
+    if (this.bgmOscillator) {
+      try {
+        this.bgmOscillator.stop();
+        this.bgmOscillator.disconnect();
+      } catch (e) {}
+      this.bgmOscillator = null;
+      this.isBgmPlaying = false;
+    }
+  }
+
+  // Play tick sound when selecting option or timer pulse
+  public playTickSound() {
+    if (!this.isEnabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } catch (e) {}
   }
 
   // Play crisp positive chime when answer is correct

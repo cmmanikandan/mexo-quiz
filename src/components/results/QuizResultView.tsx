@@ -196,24 +196,50 @@ export const QuizResultView: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Student Answer vs Correct Answer Box */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div className={`p-2.5 rounded-xl border ${
-                      isCorrect
-                        ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200 font-semibold'
-                        : 'bg-rose-950/40 border-rose-800/60 text-rose-200 font-semibold'
-                    }`}>
-                      <p className="text-[10px] uppercase font-bold text-slate-400">Your Response:</p>
-                      <p className="mt-0.5">{formatAnswerText(userAnswer)}</p>
-                    </div>
+                  {/* Question Options List Review */}
+                  {q.options && q.options.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {q.options.map(opt => {
+                        const isChosen =
+                          userAnswer === opt.id ||
+                          userAnswer === opt.text ||
+                          (Array.isArray(userAnswer) && userAnswer.includes(opt.id));
+                        const isCorrectOpt = !!opt.isCorrect;
 
-                    {!isCorrect && correctOption && (
-                      <div className="p-2.5 rounded-xl border bg-emerald-950/40 border-emerald-800/60 text-emerald-200 font-semibold">
-                        <p className="text-[10px] uppercase font-bold text-emerald-400">Correct Answer Key:</p>
-                        <p className="mt-0.5">{correctOption.text}</p>
-                      </div>
-                    )}
-                  </div>
+                        let style = 'bg-slate-900 border-slate-800 text-slate-400';
+                        let badgeText = '';
+                        let badgeBg = '';
+
+                        if (isChosen && isCorrectOpt) {
+                          style = 'bg-emerald-950 border-emerald-500 text-emerald-200 font-bold';
+                          badgeText = '✓ Your Answer (Correct)';
+                          badgeBg = 'bg-emerald-500 text-white';
+                        } else if (isChosen && !isCorrectOpt) {
+                          style = 'bg-rose-950 border-rose-500 text-rose-200 font-bold';
+                          badgeText = '✕ Your Answer (Incorrect)';
+                          badgeBg = 'bg-rose-500 text-white';
+                        } else if (!isChosen && isCorrectOpt) {
+                          style = 'bg-emerald-950/60 border-emerald-500/80 text-emerald-300 font-semibold';
+                          badgeText = '✓ Correct Answer Key';
+                          badgeBg = 'bg-emerald-600 text-white';
+                        }
+
+                        return (
+                          <div
+                            key={opt.id}
+                            className={`p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${style}`}
+                          >
+                            <span>{opt.text}</span>
+                            {badgeText && (
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badgeBg}`}>
+                                {badgeText}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {q.explanation && (
                     <p className="text-xs text-slate-300 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 font-sans">
@@ -237,15 +263,28 @@ export const QuizResultView: React.FC = () => {
           <span>Back to Dashboard</span>
         </button>
 
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
           {quiz && (
-            <button
-              onClick={() => navigate(`/quiz/${quiz.id}`)}
-              className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center space-x-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Retry Quiz</span>
-            </button>
+            (() => {
+              const isSingleAttempt = quiz.settings?.attemptsLimit === 1 || quiz.resource_type === 'assessment' || quiz.settings?.allowRetakes === false;
+              if (!isSingleAttempt) {
+                return (
+                  <button
+                    onClick={() => navigate(`/quiz/${quiz.id}`)}
+                    className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center space-x-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Retry Quiz</span>
+                  </button>
+                );
+              } else {
+                return (
+                  <span className="px-4 py-2 rounded-2xl bg-slate-800 text-slate-400 font-bold text-xs border border-slate-700">
+                    Single Attempt Test (No Retakes)
+                  </span>
+                );
+              }
+            })()
           )}
         </div>
       </div>

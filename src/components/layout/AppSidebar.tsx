@@ -19,6 +19,7 @@ import {
   ExternalLink,
   X,
   Plus,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MexoAvatar } from '../common/MexoAvatar';
@@ -42,6 +43,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
     { label: 'Assignments', path: '/assignments', icon: FileText },
     { label: 'Live Sessions', path: '/sessions', icon: Radio },
     { label: 'Reports & Analytics', path: '/reports', icon: BarChart3 },
+    { label: 'Anti-Cheating Logs', path: '/anti-cheating', icon: ShieldAlert },
     { label: 'Leaderboard', path: '/leaderboard', icon: Trophy },
     { label: 'Learning Progress', path: '/progress', icon: TrendingUp },
     { label: 'Calendar', path: '/calendar', icon: Calendar },
