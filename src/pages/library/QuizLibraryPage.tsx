@@ -4,6 +4,7 @@ import { quizService } from '../../services/quizService';
 import { Quiz, ResourceType } from '../../types/quiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { CreateModal } from '../../components/create/CreateModal';
 import {
   Search,
   Star,
@@ -158,6 +159,8 @@ export const QuizLibraryPage: React.FC = () => {
     }
   };
 
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
   return (
     <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 select-none box-border overflow-hidden">
       {/* 1. MOBILE-FIRST RESPONSIVE HERO BANNER */}
@@ -179,7 +182,7 @@ export const QuizLibraryPage: React.FC = () => {
 
           {/* Embedded Mobile Create Button */}
           <button
-            onClick={() => navigate('/builder/new')}
+            onClick={() => setShowCreateModal(true)}
             className="w-full max-w-[280px] md:hidden mt-2 py-3 rounded-2xl bg-white text-[#7C3AED] hover:bg-purple-50 font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 shrink-0"
           >
             <PlusCircle className="w-4 h-4 text-[#7C3AED]" />
@@ -189,7 +192,7 @@ export const QuizLibraryPage: React.FC = () => {
 
         {/* Desktop Create Button */}
         <button
-          onClick={() => navigate('/builder/new')}
+          onClick={() => setShowCreateModal(true)}
           className="hidden md:flex items-center space-x-2 px-6 py-3 rounded-2xl bg-white text-[#7C3AED] hover:bg-purple-50 font-extrabold text-xs shadow-md transition-all cursor-pointer shrink-0"
         >
           <PlusCircle className="w-4 h-4 text-[#7C3AED]" />
@@ -313,7 +316,7 @@ export const QuizLibraryPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate('/builder/new')}
+            onClick={() => setShowCreateModal(true)}
             className="px-5 py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer inline-flex items-center space-x-2"
           >
             <Plus className="w-4 h-4" />
@@ -471,6 +474,9 @@ export const QuizLibraryPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Create Resource Modal */}
+      <CreateModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   );
 };
