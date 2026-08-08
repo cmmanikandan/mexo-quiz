@@ -153,6 +153,18 @@ export const QuizBuilder: React.FC = () => {
 
   useDocumentTitle(`${quiz.settings.title || 'Untitled Quiz'} (Editor) — MEXO Quiz`);
 
+  // Fetch quiz from database on mount if editing existing ID not in memory
+  useEffect(() => {
+    if (id && id !== 'new' && quiz.id !== id) {
+      quizService.fetchQuizById(id).then(fetched => {
+        if (fetched) {
+          setQuiz(fetched);
+          lastSavedQuizRef.current = JSON.parse(JSON.stringify(fetched));
+        }
+      });
+    }
+  }, [id]);
+
   // Core Async Database Save Execution
   const executeDatabaseSave = useCallback(
     async (quizToSave: Quiz): Promise<boolean> => {
@@ -164,6 +176,12 @@ export const QuizBuilder: React.FC = () => {
         if (res.success) {
           setSaveStatus('saved');
           lastSavedQuizRef.current = JSON.parse(JSON.stringify(res.quiz));
+
+          // If we saved a new quiz, replace URL from /builder/new to /builder/:id
+          if (id === 'new' && res.quiz.id) {
+            navigate(`/builder/${res.quiz.id}`, { replace: true });
+          }
+
           return true;
         } else {
           setSaveStatus('failed');
@@ -176,7 +194,7 @@ export const QuizBuilder: React.FC = () => {
         return false;
       }
     },
-    []
+    [id, navigate]
   );
 
   // Debounced Auto-Save Trigger

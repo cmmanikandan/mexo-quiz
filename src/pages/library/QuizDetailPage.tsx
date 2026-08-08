@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizService } from '../../services/quizService';
 import { Quiz } from '../../types/quiz';
@@ -42,7 +42,21 @@ export const QuizDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
-  const quiz = quizService.getQuizById(id || '') || quizService.getAllQuizzes()[0];
+  const [quiz, setQuiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
+
+  useEffect(() => {
+    if (id) {
+      const local = quizService.getQuizById(id);
+      if (local) {
+        setQuiz(local);
+      } else {
+        quizService.fetchQuizById(id).then(fetched => {
+          if (fetched) setQuiz(fetched);
+        });
+      }
+    }
+  }, [id]);
+
   useDocumentTitle(`${quiz?.settings?.title || 'Resource Details'} — MEXO Quiz`);
 
   const [copiedCode, setCopiedCode] = useState(false);

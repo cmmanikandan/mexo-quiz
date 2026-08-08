@@ -52,6 +52,36 @@ export const quizService = {
     return list.find(q => q.id === id) || null;
   },
 
+  async fetchQuizById(id: string): Promise<Quiz | null> {
+    const local = this.getQuizById(id);
+    if (local) return local;
+
+    try {
+      const { data, error } = await supabase.from('quizzes').select('*').eq('id', id).single();
+      if (data && !error) {
+        const serverQuiz: Quiz = {
+          id: data.id,
+          creator_id: data.creator_id,
+          creator_name: data.creator_name,
+          creator_avatar: data.creator_avatar,
+          resource_type: data.resource_type || 'quiz',
+          is_public: data.is_public,
+          settings: data.settings,
+          questions: data.questions || [],
+          plays_count: data.plays_count || 0,
+          rating_avg: data.rating_avg || 5.0,
+          rating_count: data.rating_count || 1,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+        this.saveQuizSync(serverQuiz);
+        return serverQuiz;
+      }
+    } catch (e) {}
+
+    return null;
+  },
+
   saveQuizSync(quiz: Quiz): Quiz {
     const list = this.getAllQuizzes();
     const existingIndex = list.findIndex(q => q.id === quiz.id);

@@ -30,7 +30,15 @@ export const QuizPlayer: React.FC = () => {
   const isTestModeParam = searchParams.get('mode') === 'test';
   const isPreviewParam = searchParams.get('preview') === 'true';
 
-  const [quiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
+  const [quiz, setQuiz] = useState<Quiz | null>(() => quizService.getQuizById(id || ''));
+
+  useEffect(() => {
+    if (id && !quiz) {
+      quizService.fetchQuizById(id).then(fetched => {
+        if (fetched) setQuiz(fetched);
+      });
+    }
+  }, [id, quiz]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
