@@ -2,15 +2,20 @@ import React, { useState, useRef } from 'react';
 import { MexoModal } from '../common/MexoModal';
 import { MexoButton } from '../common/MexoButton';
 import { Question } from '../../types/quiz';
+import { parseImportFile, ImportedQuestionItem, ImportParseResult } from '../../utils/importParser';
 import {
   Upload,
   FileText,
   FileSpreadsheet,
   FileCode,
   CheckCircle2,
-  AlertCircle,
+  AlertTriangle,
   Download,
   FolderOpen,
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 interface BulkImportProps {
@@ -23,17 +28,19 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
   const [selectedFormat, setSelectedFormat] = useState<'csv' | 'json' | 'mexo_forms' | 'txt'>('csv');
   const [rawContent, setRawContent] = useState('');
   const [error, setError] = useState('');
-  const [successCount, setSuccessCount] = useState<number | null>(null);
+  const [parseResult, setParseResult] = useState<ImportParseResult | null>(null);
+  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate & Download Official MEXO Quiz Sample CSV Template
   const handleDownloadSampleCSV = () => {
     const csvContent =
       'Question Text,Question Type,Option A,Option B,Option C,Option D,Correct Option (A/B/C/D),Points,Explanation\n' +
-      '"What is the chemical symbol for Water?",multiple_choice,"H2O","CO2","NaCl","O2","A",10,"Water consists of two hydrogen atoms and one oxygen atom."\n' +
-      '"The Earth orbits around the Sun.",true_false,"True","False","","","A",10,"The Earth completes one full orbit around the Sun every 365.25 days."\n' +
-      '"What is the capital city of France?",multiple_choice,"Paris","London","Berlin","Rome","A",10,"Paris has been the capital of France since 987 AD."\n' +
-      '"Which planet is known as the Red Planet?",multiple_choice,"Venus","Mars","Jupiter","Saturn","B",10,"Mars appears red due to iron oxide on its surface."';
+      '"What does CPU stand for?",multiple_choice,"Central Processing Unit","Computer Personal Unit","Central Program Utility","Control Processing User","A",10,"CPU is the main processing unit."\n' +
+      '"Which language structures web pages?",multiple_choice,"CSS","HTML","JavaScript","Python","B",10,"HTML provides the markup structure."\n' +
+      '"The Earth orbits around the Sun.",true_false,"True","False","","","A",10,"Earth orbits Sun every 365 days."\n' +
+      '"Which planet is known as the Red Planet?",multiple_choice,"Venus","Mars","Jupiter","Saturn","B",10,"Mars has iron oxide on its surface."';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -63,242 +70,292 @@ export const BulkImportModal: React.FC<BulkImportProps> = ({ isOpen, onClose, on
     reader.readAsText(file);
   };
 
-  // Robust CSV Line Parser splitting strictly on non-quoted commas
-  const parseCSVLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let c = 0; c < line.length; c++) {
-      const char = line[c];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(current.trim().replace(/^"|"$/g, ''));
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    if (current || line.endsWith(',')) {
-      result.push(current.trim().replace(/^"|"$/g, ''));
-    }
-    return result;
-  };
-
   const handleParse = () => {
     setError('');
-    setSuccessCount(null);
 
     if (!rawContent.trim()) {
       setError('Please select a file or paste content to import.');
       return;
     }
 
-    try {
-      const parsedQuestions: Question[] = [];
+    const result = parseImportFile(rawContent, selectedFormat);
 
-      if (selectedFormat === 'json' || selectedFormat === 'mexo_forms') {
-        const parsed = JSON.parse(rawContent);
-        const items = Array.isArray(parsed) ? parsed : parsed.questions || parsed.fields || [];
-        items.forEach((item: any, i: number) => {
-          parsedQuestions.push({
-            id: `q-imp-${Date.now()}-${i}`,
-            type: item.type || 'multiple_choice',
-            title: item.title || item.label || item.question || `Imported Question ${i + 1}`,
-            points: item.points || 10,
-            options: (item.options || ['Option A', 'Option B']).map((opt: any, idx: number) => ({
-              id: `opt-${idx}`,
-              text: typeof opt === 'string' ? opt : opt.text || opt.label,
-              isCorrect: typeof opt === 'object' ? !!opt.isCorrect : idx === 0,
-            })),
-            explanation: item.explanation || '',
-            isRequired: true,
-          });
-        });
-      } else {
-        // Robust CSV / TXT Parser
-        const lines = rawContent
-          .split('\n')
-          .map(l => l.trim())
-          .filter(Boolean);
-
-        // Skip header if line 1 starts with "Question"
-        const startIndex = lines[0]?.toLowerCase().includes('question text') ? 1 : 0;
-
-        for (let i = startIndex; i < lines.length; i++) {
-          const line = lines[i];
-          const cleanParts = parseCSVLine(line);
-
-          if (cleanParts.length === 0 || !cleanParts[0]) continue;
-
-          const title = cleanParts[0];
-          const qType = cleanParts[1] === 'true_false' ? 'true_false' : 'multiple_choice';
-
-          const optA = cleanParts[2] || 'Option A';
-          const optB = cleanParts[3] || 'Option B';
-          const optC = cleanParts[4] || '';
-          const optD = cleanParts[5] || '';
-          const correctKey = (cleanParts[6] || 'A').toUpperCase();
-          const points = parseInt(cleanParts[7], 10) || 10;
-          const explanation = cleanParts[8] || '';
-
-          const optionsList = [
-            { id: 'opt-a', text: optA, isCorrect: correctKey === 'A' || correctKey === '1' },
-            { id: 'opt-b', text: optB, isCorrect: correctKey === 'B' || correctKey === '2' },
-          ];
-
-          if (optC) {
-            optionsList.push({
-              id: 'opt-c',
-              text: optC,
-              isCorrect: correctKey === 'C' || correctKey === '3',
-            });
-          }
-          if (optD) {
-            optionsList.push({
-              id: 'opt-d',
-              text: optD,
-              isCorrect: correctKey === 'D' || correctKey === '4',
-            });
-          }
-
-          // Default first option if none matched
-          if (!optionsList.some(o => o.isCorrect)) {
-            optionsList[0].isCorrect = true;
-          }
-
-          parsedQuestions.push({
-            id: `q-imp-${Date.now()}-${i}`,
-            type: qType,
-            title,
-            points,
-            options: optionsList,
-            explanation,
-            isRequired: true,
-          });
-        }
-      }
-
-      if (parsedQuestions.length === 0) {
-        setError('No valid questions could be extracted from the file.');
-        return;
-      }
-
-      setSuccessCount(parsedQuestions.length);
-      setTimeout(() => {
-        onImport(parsedQuestions);
-        onClose();
-      }, 800);
-    } catch (e: any) {
-      setError(`Parsing error: ${e.message || 'Invalid format'}`);
+    if (result.questions.length === 0) {
+      setError(result.warnings[0] || 'No valid questions could be extracted from the file.');
+      return;
     }
+
+    setParseResult(result);
+    setStep('preview');
+  };
+
+  const handleSelectCorrectAnswerInPreview = (qId: string, optionId: string) => {
+    if (!parseResult) return;
+
+    const updatedQuestions = parseResult.questions.map(q => {
+      if (q.id !== qId) return q;
+
+      const updatedOptions = q.options.map(o => ({
+        ...o,
+        isCorrect: o.id === optionId,
+      }));
+
+      const matchedOpt = updatedOptions.find(o => o.id === optionId);
+
+      return {
+        ...q,
+        options: updatedOptions,
+        status: 'valid' as const,
+        detectedAnswerLabel: matchedOpt ? matchedOpt.text : 'Valid',
+        warningMessage: undefined,
+      };
+    });
+
+    const validCount = updatedQuestions.filter(q => q.status === 'valid').length;
+    const needsReviewCount = updatedQuestions.filter(q => q.status === 'needs_review').length;
+
+    setParseResult({
+      ...parseResult,
+      questions: updatedQuestions,
+      validCount,
+      needsReviewCount,
+    });
+  };
+
+  const handleConfirmImport = () => {
+    if (!parseResult) return;
+
+    // Convert ImportedQuestionItem[] to standard Question[]
+    const finalQuestions: Question[] = parseResult.questions.map(iq => ({
+      id: iq.id,
+      type: iq.type,
+      title: iq.title,
+      points: iq.points,
+      options: iq.options,
+      explanation: iq.explanation,
+      isRequired: iq.isRequired,
+    }));
+
+    onImport(finalQuestions);
+    onClose();
   };
 
   return (
-    <MexoModal isOpen={isOpen} onClose={onClose} title="Import Questions to Quiz" maxWidth="lg">
-      <div className="space-y-4 pt-1">
-        {/* Header Action: Download Sample CSV Template */}
-        <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="space-y-0.5 text-center sm:text-left">
-            <p className="text-xs font-bold text-slate-900">Need a CSV template format?</p>
-            <p className="text-[11px] text-slate-500">
-              Download our ready-to-use CSV template to structure your questions, choices, and answer keys.
-            </p>
-          </div>
-          <button
-            onClick={handleDownloadSampleCSV}
-            className="px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer inline-flex items-center space-x-1.5 shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download CSV Template</span>
-          </button>
-        </div>
-
-        {/* Format Selector */}
-        <div className="flex space-x-2 border-b border-slate-100 pb-3 overflow-x-auto">
-          {[
-            { id: 'csv', label: 'CSV / Excel', icon: FileSpreadsheet },
-            { id: 'json', label: 'JSON Format', icon: FileCode },
-            { id: 'mexo_forms', label: 'MEXO Forms', icon: FileText },
-            { id: 'txt', label: 'TXT File', icon: FileText },
-          ].map(fmt => {
-            const Icon = fmt.icon;
-            return (
-              <button
-                key={fmt.id}
-                onClick={() => setSelectedFormat(fmt.id as any)}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedFormat === fmt.id
-                    ? 'bg-purple-100 text-[#7C3AED] border border-purple-200'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{fmt.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {successCount !== null && (
-          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Successfully extracted & imported {successCount} questions!</span>
-          </div>
-        )}
-
-        {/* Upload File or Paste Raw Text */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-slate-700">
-              Select File OR Paste Content Below
-            </label>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".csv,.json,.txt"
-              className="hidden"
-            />
+    <MexoModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={step === 'upload' ? 'Import Questions to Quiz' : 'Import Preview & Validation'}
+      maxWidth="lg"
+    >
+      {step === 'upload' ? (
+        <div className="space-y-4 pt-1 select-none">
+          {/* Header Action: Download Sample CSV Template */}
+          <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="space-y-0.5 text-center sm:text-left">
+              <p className="text-xs font-bold text-slate-900">Need a CSV template format?</p>
+              <p className="text-[11px] text-slate-500">
+                Download our ready-to-use CSV template to structure your questions, choices, and answer keys.
+              </p>
+            </div>
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="text-xs font-bold text-[#7C3AED] hover:underline flex items-center space-x-1 cursor-pointer"
+              onClick={handleDownloadSampleCSV}
+              className="px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer inline-flex items-center space-x-1.5 shrink-0"
             >
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span>Browse File...</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Download CSV Template</span>
             </button>
           </div>
 
-          <textarea
-            rows={7}
-            value={rawContent}
-            onChange={e => setRawContent(e.target.value)}
-            placeholder={
-              selectedFormat === 'csv'
-                ? 'Question Text,Question Type,Option A,Option B,Option C,Option D,Correct Option (A/B/C/D),Points,Explanation\n"What is H2O?",multiple_choice,"Water","CO2","NaCl","O2","A",10,"Water consists of H2O"'
-                : 'Paste JSON array or file contents here...'
-            }
-            className="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-[#7C3AED]"
-          />
-        </div>
+          {/* Format Selector */}
+          <div className="flex space-x-2 border-b border-slate-100 pb-3 overflow-x-auto">
+            {[
+              { id: 'csv', label: 'CSV / Excel', icon: FileSpreadsheet },
+              { id: 'json', label: 'JSON Format', icon: FileCode },
+              { id: 'mexo_forms', label: 'MEXO Forms', icon: FileText },
+              { id: 'txt', label: 'TXT File', icon: FileText },
+            ].map(fmt => {
+              const Icon = fmt.icon;
+              return (
+                <button
+                  key={fmt.id}
+                  onClick={() => setSelectedFormat(fmt.id as any)}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedFormat === fmt.id
+                      ? 'bg-purple-100 text-[#7C3AED] border border-purple-200'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{fmt.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-          <MexoButton variant="outline" size="sm" onClick={onClose}>
-            Cancel
-          </MexoButton>
-          <MexoButton variant="purple" size="sm" onClick={handleParse} leftIcon={<Upload className="w-4 h-4" />}>
-            Parse & Import Questions
-          </MexoButton>
+          {error && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Upload File or Paste Raw Text */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700">
+                Select File OR Paste Content Below
+              </label>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".csv,.json,.txt"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs font-bold text-[#7C3AED] hover:underline flex items-center space-x-1 cursor-pointer"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Browse File...</span>
+              </button>
+            </div>
+
+            <textarea
+              rows={7}
+              value={rawContent}
+              onChange={e => setRawContent(e.target.value)}
+              placeholder={
+                selectedFormat === 'csv'
+                  ? 'Question Text,Question Type,Option A,Option B,Option C,Option D,Correct Option (A/B/C/D),Points,Explanation\n"What is H2O?",multiple_choice,"Water","CO2","NaCl","O2","A",10,"Water consists of H2O"'
+                  : 'Paste JSON array or file contents here...'
+              }
+              className="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-[#7C3AED]"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+            <MexoButton variant="outline" size="sm" onClick={onClose}>
+              Cancel
+            </MexoButton>
+            <MexoButton variant="purple" size="sm" onClick={handleParse} leftIcon={<Upload className="w-4 h-4" />}>
+              Parse & Preview
+            </MexoButton>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* STEP 2: IMPORT PREVIEW & VALIDATION */
+        <div className="space-y-4 pt-1 select-none">
+          {/* Import Summary Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Questions Found</p>
+              <p className="text-lg font-black text-slate-900 mt-0.5">{parseResult?.questions.length}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Options Extracted</p>
+              <p className="text-lg font-black text-blue-600 mt-0.5">{parseResult?.optionsCount}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Valid Answers</p>
+              <p className="text-lg font-black text-emerald-600 mt-0.5">{parseResult?.validCount}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Needs Review</p>
+              <p className={`text-lg font-black mt-0.5 ${parseResult?.needsReviewCount ? 'text-amber-600' : 'text-slate-400'}`}>
+                {parseResult?.needsReviewCount}
+              </p>
+            </div>
+          </div>
+
+          {parseResult?.needsReviewCount! > 0 && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                {parseResult?.needsReviewCount} question(s) need a correct answer selected before saving. Please assign their answer keys below.
+              </span>
+            </div>
+          )}
+
+          {/* Import Preview Table */}
+          <div className="overflow-x-auto border border-slate-200 rounded-2xl max-w-full max-h-72">
+            <table className="w-full text-left text-xs min-w-[550px]">
+              <thead className="sticky top-0 bg-slate-100 z-10">
+                <tr className="border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
+                  <th className="p-3 w-12 text-center">#</th>
+                  <th className="p-3">Question</th>
+                  <th className="p-3">Correct Answer</th>
+                  <th className="p-3 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                {parseResult?.questions.map((q, idx) => {
+                  const isNeedsReview = q.status === 'needs_review';
+                  return (
+                    <tr key={q.id} className={isNeedsReview ? 'bg-amber-50/40' : 'hover:bg-slate-50/60'}>
+                      <td className="p-3 text-center font-mono font-bold text-slate-400">Q{idx + 1}</td>
+                      <td className="p-3 font-bold text-slate-900 max-w-xs truncate">{q.title}</td>
+                      <td className="p-3">
+                        {isNeedsReview ? (
+                          <select
+                            onChange={e => handleSelectCorrectAnswerInPreview(q.id, e.target.value)}
+                            defaultValue=""
+                            className="py-1 px-2 text-xs rounded-xl bg-white border border-amber-300 font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          >
+                            <option value="" disabled>
+                              Select Correct Option...
+                            </option>
+                            {q.options.map(o => (
+                              <option key={o.id} value={o.id}>
+                                {o.text}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="font-semibold text-emerald-700">{q.detectedAnswerLabel}</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        {isNeedsReview ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold inline-flex items-center space-x-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-600" />
+                            <span>Needs Review</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold inline-flex items-center space-x-1">
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>✓ Valid</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <button
+              onClick={() => setStep('upload')}
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer flex items-center space-x-1.5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Upload</span>
+            </button>
+
+            <MexoButton
+              variant="purple"
+              size="sm"
+              onClick={handleConfirmImport}
+              disabled={parseResult?.needsReviewCount! > 0}
+              leftIcon={<CheckCircle2 className="w-4 h-4" />}
+            >
+              Confirm & Save {parseResult?.questions.length} Questions
+            </MexoButton>
+          </div>
+        </div>
+      )}
     </MexoModal>
   );
 };

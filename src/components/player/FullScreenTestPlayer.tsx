@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Quiz, Question } from '../../types/quiz';
+import { Quiz, Question, QuestionOption } from '../../types/quiz';
 import { attemptService } from '../../services/attemptService';
 import { audioService } from '../../utils/audioService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,20 +15,16 @@ import {
   CheckCircle2,
   AlertTriangle,
   Send,
-  Wifi,
   WifiOff,
-  Maximize2,
-  Minimize2,
   X,
   Calculator,
   BookOpen,
   Grid,
-  MoreVertical,
-  Maximize,
-  HelpCircle,
-  Sparkles,
   ShieldAlert,
   Lock,
+  Play,
+  Sparkles,
+  Award,
 } from 'lucide-react';
 
 interface FullScreenTestPlayerProps {
@@ -47,9 +43,42 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const navigate = useNavigate();
   const { profile, user } = useAuth();
 
+  // State machine for start flow: 'welcome' | 'countdown' | 'in_progress' | 'submitted'
+  const [sessionState, setSessionState] = useState<'welcome' | 'countdown' | 'in_progress' | 'submitted'>(() => {
+    if (isTeacherPreview) return 'in_progress';
+    try {
+      const savedStart = localStorage.getItem(`test_started_at_${quiz.id}`);
+      if (savedStart) return 'in_progress';
+    } catch (e) {}
+    return 'welcome';
+  });
+
+  const [countdownNum, setCountdownNum] = useState<number | string>(3);
+  const [isStarting, setIsStarting] = useState(false);
+
+  // Prepared shuffled questions & options for this session
+  const [sessionQuestions, setSessionQuestions] = useState<Question[]>(() => {
+    let qList = [...quiz.questions];
+
+    // 1. Shuffle Questions if setting enabled
+    if (quiz.settings?.shuffleQuestions) {
+      qList = [...qList].sort(() => Math.random() - 0.5);
+    }
+
+    // 2. Shuffle Options per question if setting enabled
+    if (quiz.settings?.shuffleOptions) {
+      qList = qList.map(q => ({
+        ...q,
+        options: [...(q.options || [])].sort(() => Math.random() - 0.5),
+      }));
+    }
+
+    return qList;
+  });
+
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Restore draft user answers from local storage if available
+  // Restore draft user answers from local storage
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>(() => {
     try {
       const saved = localStorage.getItem(`test_draft_${quiz.id}`);
@@ -67,7 +96,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isNetworkOffline, setIsNetworkOffline] = useState(!navigator.onLine);
-  const [showMobileOverflow, setShowMobileOverflow] = useState(false);
 
   // Anti-Cheating violation tracking
   const [cheatingViolations, setCheatingViolations] = useState(0);
@@ -75,23 +103,28 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   const maxAllowedViolations = quiz.settings?.maxAllowedViolations || 3;
   const isAntiCheatingEnabled = !!quiz.settings?.enableTabSwitchDetection && !isTeacherPreview;
 
-  // Timer setup: restore remaining seconds from local storage if available
+  // Timestamp-based resilient timer
   const durationSeconds = (quiz.settings?.quizDurationMinutes || 15) * 60;
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
+  const [startedAtTimestamp, setStartedAtTimestamp] = useState<number>(() => {
     try {
-      const savedTimer = localStorage.getItem(`test_timer_${quiz.id}`);
-      if (savedTimer) {
-        const val = parseInt(savedTimer, 10);
-        if (!isNaN(val) && val > 0) return val;
-      }
+      const saved = localStorage.getItem(`test_started_at_${quiz.id}`);
+      if (saved) return parseInt(saved, 10);
     } catch (e) {}
-    return durationSeconds;
+    return Date.now();
   });
 
-  const currentQuestion = quiz.questions[currentIndex] || quiz.questions[0];
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
+    if (quiz.settings?.timerMode === 'none') return durationSeconds;
+    const elapsed = Math.max(0, Math.floor((Date.now() - startedAtTimestamp) / 1000));
+    return Math.max(0, durationSeconds - elapsed);
+  });
+
+  const currentQuestion = sessionQuestions[currentIndex] || sessionQuestions[0];
 
   // Intercept window reload & back button navigation
   useEffect(() => {
+    if (sessionState !== 'in_progress') return;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = 'Leave Quiz? Your progress has been saved locally.';
@@ -99,7 +132,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [sessionState]);
 
   // Online / Offline listener
   useEffect(() => {
@@ -115,7 +148,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
   // Anti-Cheating: Tab Switch & Window Blur Detection
   useEffect(() => {
-    if (!isAntiCheatingEnabled) return;
+    if (!isAntiCheatingEnabled || sessionState !== 'in_progress') return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -132,32 +165,61 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isAntiCheatingEnabled, maxAllowedViolations]);
+  }, [isAntiCheatingEnabled, maxAllowedViolations, sessionState]);
 
-  // Countdown timer effect & auto-submit
+  // Resilient Timestamp-Based Timer Loop
   useEffect(() => {
-    if (quiz.settings?.timerMode === 'none') return;
+    if (sessionState !== 'in_progress' || quiz.settings?.timerMode === 'none') return;
 
-    if (secondsRemaining <= 0) {
-      handleFinalSubmit();
-      return;
-    }
+    const interval = setInterval(() => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - startedAtTimestamp) / 1000));
+      const remaining = Math.max(0, durationSeconds - elapsed);
 
-    const timer = setInterval(() => {
-      setSecondsRemaining(prev => {
-        const next = prev - 1;
-        try {
-          localStorage.setItem(`test_timer_${quiz.id}`, next.toString());
-        } catch (e) {}
-        return next;
-      });
+      setSecondsRemaining(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        handleFinalSubmit();
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [secondsRemaining, quiz.settings?.timerMode]);
+    return () => clearInterval(interval);
+  }, [sessionState, startedAtTimestamp, durationSeconds, quiz.settings?.timerMode]);
+
+  // Start Quiz Handler (Launches 3-2-1 Countdown)
+  const handlePressStartQuiz = () => {
+    if (isStarting) return;
+    setIsStarting(true);
+    setSessionState('countdown');
+
+    let count = 3;
+    setCountdownNum(3);
+    audioService.playTickSound();
+
+    const timer = setInterval(() => {
+      count -= 1;
+      if (count === 0) {
+        setCountdownNum('GO!');
+        audioService.playCorrectSound();
+      } else if (count < 0) {
+        clearInterval(timer);
+        const now = Date.now();
+        setStartedAtTimestamp(now);
+        try {
+          localStorage.setItem(`test_started_at_${quiz.id}`, now.toString());
+        } catch (e) {}
+        setSessionState('in_progress');
+        setIsStarting(false);
+      } else {
+        setCountdownNum(count);
+        audioService.playTickSound();
+      }
+    }, 1000);
+  };
 
   const handleSelectOption = (value: any) => {
     if (!currentQuestion) return;
+    audioService.playTickSound();
     const updated = { ...userAnswers, [currentQuestion.id]: value };
     setUserAnswers(updated);
 
@@ -178,6 +240,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
       try {
         localStorage.removeItem(`test_draft_${quiz.id}`);
         localStorage.removeItem(`test_timer_${quiz.id}`);
+        localStorage.removeItem(`test_started_at_${quiz.id}`);
       } catch (e) {}
       navigate('/library');
       return;
@@ -189,15 +252,16 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
       : user?.email || 'Student';
     const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url;
 
-    const timeSpent = durationSeconds - secondsRemaining;
-    const attempt = attemptService.submitAttempt(quiz, userId, userName, userAvatar, userAnswers, Math.max(1, timeSpent));
+    const timeSpent = Math.max(1, Math.floor((Date.now() - startedAtTimestamp) / 1000));
+    const attempt = attemptService.submitAttempt(quiz, userId, userName, userAvatar, userAnswers, timeSpent);
 
-    // Audio Victory Fanfare
+    // Play Victory Audio
     audioService.playVictoryFanfare();
 
     try {
       localStorage.removeItem(`test_draft_${quiz.id}`);
       localStorage.removeItem(`test_timer_${quiz.id}`);
+      localStorage.removeItem(`test_started_at_${quiz.id}`);
     } catch (e) {}
 
     setTimeout(() => {
@@ -212,7 +276,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
   };
 
   const answeredCount = Object.keys(userAnswers).filter(k => userAnswers[k] !== undefined && userAnswers[k] !== '').length;
-  const unansweredCount = Math.max(0, quiz.questions.length - answeredCount);
+  const unansweredCount = Math.max(0, sessionQuestions.length - answeredCount);
   const markedCount = Object.values(markedForReview).filter(Boolean).length;
 
   const currentUserId = profile?.id || user?.id || 'guest';
@@ -272,6 +336,97 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
     );
   }
 
+  /* 13. ASSIGNED QUIZ WELCOME SCREEN */
+  if (sessionState === 'welcome') {
+    const questionsCount = quiz.questions?.length || 0;
+    const totalPoints = quiz.questions?.reduce((acc, q) => acc + (q.points || 1), 0) || questionsCount;
+    const durationMins = quiz.settings?.quizDurationMinutes || 10;
+    const attemptsLimit = quiz.settings?.attemptsLimit || 1;
+    const passingScore = quiz.settings?.passingScorePercentage || 60;
+
+    return (
+      <div className="fixed inset-0 bg-slate-950 text-white z-50 flex items-center justify-center p-4 select-none font-sans">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center space-y-6 shadow-2xl relative overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 absolute top-0 left-0 right-0" />
+
+          <div className="flex items-center justify-center space-x-2 pt-2">
+            <img src="/logo.png" alt="MEXO" className="w-8 h-8 object-contain" />
+            <span className="text-lg font-black tracking-tight">
+              MEXO <span className="text-[#7C3AED]">Quiz</span>
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl sm:text-2xl font-black text-white">{quizTitle}</h1>
+            <p className="text-xs text-purple-200 font-mono font-bold">
+              {quiz.settings?.subject || 'General'} • {quiz.resource_type || 'Quiz'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Questions</p>
+              <p className="text-lg font-black text-white mt-0.5">{questionsCount}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Total Points</p>
+              <p className="text-lg font-black text-amber-400 mt-0.5">{totalPoints}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Duration</p>
+              <p className="text-lg font-black text-purple-400 mt-0.5">{durationMins} Mins</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
+            <div className="flex justify-between text-slate-300">
+              <span className="text-slate-400">Allowed Attempts:</span>
+              <span className="font-bold">{attemptsLimit === 0 ? 'Unlimited' : `${attemptsLimit} Attempt`}</span>
+            </div>
+            <div className="flex justify-between text-slate-300">
+              <span className="text-slate-400">Passing Score:</span>
+              <span className="font-bold text-emerald-400">{passingScore}%</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-purple-200 bg-purple-950/60 p-3 rounded-2xl border border-purple-800/60">
+            🔔 Your attempt & timer will begin only after you press <span className="font-bold text-white">Start Quiz</span>.
+          </p>
+
+          <button
+            onClick={handlePressStartQuiz}
+            disabled={isStarting}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-sm shadow-xl transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-75"
+          >
+            {isStarting ? (
+              <span>Starting...</span>
+            ) : (
+              <>
+                <Play className="w-5 h-5 fill-white" />
+                <span>Start Quiz</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* 15. 3-2-1 COUNTDOWN SCREEN */
+  if (sessionState === 'countdown') {
+    return (
+      <div className="fixed inset-0 bg-slate-950 text-white z-50 flex flex-col items-center justify-center p-4 select-none font-sans">
+        <div className="text-center space-y-6 animate-in zoom-in-95 duration-200">
+          <p className="text-sm font-black uppercase tracking-widest text-purple-400">GET READY</p>
+          <div className="w-40 h-40 rounded-full bg-purple-600/20 border-4 border-[#7C3AED] flex items-center justify-center mx-auto shadow-2xl shadow-purple-500/30">
+            <span className="text-7xl font-black text-white font-mono animate-pulse">{countdownNum}</span>
+          </div>
+          <p className="text-xs text-slate-400">Your exam session is starting now...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-950 text-slate-100 z-50 flex flex-col select-none overflow-hidden font-sans">
       {/* Anti-Cheating Violation Warning Banner */}
@@ -300,7 +455,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
       {/* Header Navigation Bar */}
       <header className="h-16 border-b border-slate-800/90 bg-slate-900 px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
-        {/* Left: Logo & Quiz Title */}
         <div className="flex items-center space-x-2.5 min-w-0 pr-2">
           <img src="/logo.png" alt="MEXO Quiz" className="w-7 h-7 object-contain shrink-0" />
           <div className="min-w-0">
@@ -311,7 +465,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
                 </span>
               )}
               <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest hidden sm:inline">
-                Test Mode
+                Exam Mode
               </span>
             </div>
             <h1 className="text-xs sm:text-sm font-extrabold text-white truncate max-w-[150px] sm:max-w-xs md:max-w-md">
@@ -322,7 +476,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
 
         {/* Right Tools Bar */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-          {/* Timer Display */}
           {quiz.settings?.timerMode !== 'none' && (
             <div
               className={`px-3 py-1.5 rounded-full text-xs font-mono font-black border flex items-center space-x-1.5 ${
@@ -338,7 +491,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             </div>
           )}
 
-          {/* Calculator Button */}
           <button
             onClick={() => setShowCalculator(true)}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
@@ -347,7 +499,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             <Calculator className="w-4 h-4" />
           </button>
 
-          {/* Instructions Button */}
           <button
             onClick={() => setShowInstructions(true)}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer hidden sm:block"
@@ -356,7 +507,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             <BookOpen className="w-4 h-4" />
           </button>
 
-          {/* Question Navigator Grid Button */}
           <button
             onClick={() => setShowNavigator(true)}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
@@ -365,7 +515,6 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             <Grid className="w-4 h-4" />
           </button>
 
-          {/* Finish Quiz Action Button */}
           <button
             onClick={() => setShowFinishModal(true)}
             className="px-3.5 py-1.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
@@ -389,23 +538,20 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full flex flex-col justify-between select-text">
         {currentQuestion && (
           <div className="space-y-6">
-            {/* Question Header & Type & Points Badge */}
             <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-5 sm:p-8 space-y-4 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-purple-400">
-                  Question {currentIndex + 1} of {quiz.questions.length} • {currentQuestion.type.replace('_', ' ')}
+                  Question {currentIndex + 1} of {sessionQuestions.length} • {currentQuestion.type.replace('_', ' ')}
                 </span>
                 <span className="text-xs font-extrabold px-3 py-1 rounded-xl bg-slate-800 text-amber-300 font-mono">
                   {currentQuestion.points} Points
                 </span>
               </div>
 
-              {/* Question Text */}
               <h2 className="text-lg sm:text-2xl font-black text-white leading-relaxed tracking-tight">
                 {currentQuestion.title}
               </h2>
 
-              {/* Optional Question Image */}
               {currentQuestion.mediaUrl && (
                 <div
                   onClick={() => setZoomedImage(currentQuestion.mediaUrl || null)}
@@ -425,10 +571,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
                 userAnswer={userAnswers[currentQuestion.id]}
                 onChangeAnswer={handleSelectOption}
                 isDarkTheme={true}
-                showImmediateFeedback={
-                  !!quiz.settings?.showCorrectAnswerImmediately ||
-                  !!quiz.settings?.showAnswersAfterQuiz
-                }
+                showImmediateFeedback={false}
               />
             </div>
           </div>
@@ -456,14 +599,14 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || quiz.settings?.attemptsLimit === 1}
             className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 text-xs font-bold cursor-pointer flex items-center space-x-1 border border-slate-700"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Previous</span>
           </button>
 
-          {currentIndex === quiz.questions.length - 1 ? (
+          {currentIndex === sessionQuestions.length - 1 ? (
             <button
               onClick={() => setShowFinishModal(true)}
               className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-lg transition-all cursor-pointer flex items-center space-x-1.5"
@@ -473,7 +616,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => setCurrentIndex(prev => Math.min(quiz.questions.length - 1, prev + 1))}
+              onClick={() => setCurrentIndex(prev => Math.min(sessionQuestions.length - 1, prev + 1))}
               className="px-5 py-2.5 rounded-xl bg-[#7C3AED] hover:bg-purple-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer flex items-center space-x-1"
             >
               <span>Next</span>
@@ -495,7 +638,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             </div>
 
             <div className="grid grid-cols-5 gap-2.5 max-h-64 overflow-y-auto pr-1">
-              {quiz.questions.map((q, idx) => {
+              {sessionQuestions.map((q, idx) => {
                 const isAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== '';
                 const isMarked = markedForReview[q.id];
                 return (
@@ -573,7 +716,7 @@ export const FullScreenTestPlayer: React.FC<FullScreenTestPlayerProps> = ({
             <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center">
               <div>
                 <p className="text-xs text-slate-400 font-bold">Answered</p>
-                <p className="text-lg font-black text-emerald-400">{answeredCount} / {quiz.questions.length}</p>
+                <p className="text-lg font-black text-emerald-400">{answeredCount} / {sessionQuestions.length}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 font-bold">Unanswered</p>
