@@ -141,72 +141,96 @@ export const ReportDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Question Item Analysis */}
+      {/* Wayground-Style Student Response Matrix Table with Question-Wise Ticks/Crosses */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
-        <h3 className="text-base font-extrabold text-slate-900">Question Item Analysis</h3>
-
-        <div className="space-y-3">
-          {quiz.questions.map((q, idx) => (
-            <div key={q.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50 space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 uppercase">
-                    Q{idx + 1} • {q.type.replace('_', ' ')}
-                  </span>
-                  <h4 className="text-xs font-bold text-slate-900 mt-1">{q.title}</h4>
-                </div>
-                <span className="text-xs font-extrabold text-emerald-600">85% Accuracy</span>
-              </div>
-              {q.explanation && (
-                <p className="text-[11px] text-slate-500 italic">Explanation: {q.explanation}</p>
-              )}
-            </div>
-          ))}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900">Student Response Breakdown & Question Matrix</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Scroll horizontally to view question-by-question ticks (✓) and crosses (✗).</p>
+          </div>
+          <button
+            onClick={() => navigate(`/anti-cheating/${quiz.id}`)}
+            className="px-3.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition-all cursor-pointer inline-flex items-center space-x-1.5"
+          >
+            <span>Anti-Cheating Logs</span>
+          </button>
         </div>
-      </div>
-
-      {/* Student Roster Submissions Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm overflow-x-auto">
-        <h3 className="text-base font-extrabold text-slate-900">Student Responses Breakdown</h3>
 
         {attempts.length === 0 ? (
-          <p className="text-xs text-slate-500 text-center py-8">No student submissions recorded for this activity yet.</p>
+          <p className="text-xs text-slate-500 text-center py-10">No student submissions recorded for this activity yet.</p>
         ) : (
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px]">
-                <th className="pb-3">Student Name</th>
-                <th className="pb-3">Score</th>
-                <th className="pb-3">Accuracy %</th>
-                <th className="pb-3">Time Spent</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Submitted Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-              {attempts.map(att => (
-                <tr key={att.id}>
-                  <td className="py-3 flex items-center space-x-2">
-                    <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
-                    <span className="font-bold text-slate-900">{att.user_name}</span>
-                  </td>
-                  <td className="py-3">{att.score} / {att.max_score}</td>
-                  <td className="py-3 font-bold text-[#7C3AED]">{att.percentage}%</td>
-                  <td className="py-3">{Math.round(att.time_spent_seconds / 60)}m {att.time_spent_seconds % 60}s</td>
-                  <td className="py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                        att.is_passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {att.is_passed ? 'PASSED' : 'FAILED'}
-                    </span>
-                  </td>
-                  <td className="py-3 text-slate-500">{new Date(att.completed_at).toLocaleString()}</td>
+          <div className="overflow-x-auto border border-slate-200 rounded-2xl max-w-full">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px]">
+                  <th className="p-3.5 sticky left-0 bg-slate-100 z-20 min-w-[170px] border-r border-slate-200 shadow-2xs">
+                    Student Name
+                  </th>
+                  <th className="p-3.5 min-w-[70px] text-center">Score</th>
+                  <th className="p-3.5 min-w-[80px] text-center">Accuracy %</th>
+                  <th className="p-3.5 min-w-[90px] text-center">Time Spent</th>
+                  <th className="p-3.5 min-w-[80px] text-center">Status</th>
+                  {quiz.questions.map((q, idx) => (
+                    <th key={q.id} className="p-3.5 text-center min-w-[55px] border-l border-slate-200" title={q.title}>
+                      Q{idx + 1}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                {attempts.map(att => (
+                  <tr key={att.id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Sticky Student Name Column */}
+                    <td className="p-3.5 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-2xs">
+                      <div className="flex items-center space-x-2">
+                        <MexoAvatar name={att.user_name} src={att.user_avatar} size="xs" />
+                        <span className="font-bold text-slate-900 truncate max-w-[120px]">{att.user_name}</span>
+                      </div>
+                    </td>
+                    <td className="p-3.5 text-center font-semibold">{att.score}/{att.max_score}</td>
+                    <td className="p-3.5 text-center font-extrabold text-[#7C3AED]">{att.percentage}%</td>
+                    <td className="p-3.5 text-center text-slate-600 font-mono text-[11px]">
+                      {Math.round(att.time_spent_seconds / 60)}m {att.time_spent_seconds % 60}s
+                    </td>
+                    <td className="p-3.5 text-center">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          att.is_passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {att.is_passed ? 'PASS' : 'FAIL'}
+                      </span>
+                    </td>
+
+                    {/* Question-Wise Correct / Incorrect Tick Cells */}
+                    {quiz.questions.map(q => {
+                      const userAnswer = att.answers ? att.answers[q.id] : undefined;
+                      const isUnanswered = userAnswer === undefined || userAnswer === null || userAnswer === '';
+                      const { isCorrect } = attemptService.gradeQuestion(q, userAnswer);
+
+                      return (
+                        <td key={q.id} className="p-2 text-center border-l border-slate-100">
+                          {isUnanswered ? (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-400 font-mono text-xs">
+                              -
+                            </span>
+                          ) : isCorrect ? (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 font-black border border-emerald-300 text-xs shadow-2xs">
+                              ✓
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-100 text-rose-700 font-black border border-rose-300 text-xs shadow-2xs">
+                              ✗
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

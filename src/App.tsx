@@ -16,6 +16,7 @@ import { SessionsPage } from './pages/sessions/SessionsPage';
 import { HostSessionPage } from './pages/sessions/HostSessionPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { ReportDetailPage } from './pages/reports/ReportDetailPage';
+import { AntiCheatingPage } from './pages/reports/AntiCheatingPage';
 import { LeaderboardPage } from './pages/leaderboard/LeaderboardPage';
 import { ProgressPage } from './pages/progress/ProgressPage';
 import { CalendarPage } from './pages/calendar/CalendarPage';
@@ -171,6 +172,26 @@ export const AppContent: React.FC = () => {
           <ProtectedRoute>
             <AppShell>
               <ReportDetailPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/anti-cheating"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AntiCheatingPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/anti-cheating/:id"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <AntiCheatingPage />
             </AppShell>
           </ProtectedRoute>
         }

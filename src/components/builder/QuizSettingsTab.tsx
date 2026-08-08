@@ -2,7 +2,7 @@ import React from 'react';
 import { QuizSettings, DifficultyLevel, TimerMode, LeaderboardVisibility, QuizStatus } from '../../types/quiz';
 import { MexoInput } from '../common/MexoInput';
 import { MexoToggle } from '../common/MexoToggle';
-import { Settings, Shield, Award, Clock, Users, Flame, Lock } from 'lucide-react';
+import { Settings, Shield, Award, Clock, Users, Flame, Lock, Upload, Image } from 'lucide-react';
 
 interface QuizSettingsTabProps {
   settings: QuizSettings;
@@ -23,6 +23,18 @@ export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({
     onChange({ ...settings, ...patch });
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+      if (event.target?.result) {
+        update({ coverImageUrl: event.target.result as string });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="space-y-8 max-w-4xl select-none">
       {/* General Settings */}
@@ -40,12 +52,24 @@ export const QuizSettingsTab: React.FC<QuizSettingsTabProps> = ({
             placeholder="e.g. Quantum Physics 101"
             required
           />
-          <MexoInput
-            label="Cover Image URL"
-            value={settings.coverImageUrl || ''}
-            onChange={e => update({ coverImageUrl: e.target.value })}
-            placeholder="https://images.unsplash.com/..."
-          />
+
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-slate-700">Cover Image</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={settings.coverImageUrl || ''}
+                onChange={e => update({ coverImageUrl: e.target.value })}
+                placeholder="Image URL or upload local file..."
+                className="flex-1 py-2 px-3 text-xs rounded-xl border border-slate-200 font-semibold focus:outline-none focus:border-[#7C3AED]"
+              />
+              <label className="px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-[#7C3AED] text-xs font-extrabold transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 shadow-2xs">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload</span>
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div>

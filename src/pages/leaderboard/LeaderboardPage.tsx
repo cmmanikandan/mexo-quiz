@@ -1,32 +1,91 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MexoAvatar } from '../../components/common/MexoAvatar';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { Trophy, Flame, Award, Star, ShieldCheck, User } from 'lucide-react';
 import { attemptService } from '../../services/attemptService';
+import { quizService } from '../../services/quizService';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { Quiz } from '../../types/quiz';
 
 interface LeaderboardUser {
   rank: number;
   name: string;
   avatar?: string;
   xp: number;
+  percentage?: number;
+  timeSpentSeconds?: number;
   streak: number;
   badge: string;
   isUser?: boolean;
 }
 
 export const LeaderboardPage: React.FC = () => {
-  useDocumentTitle('Global Quiz Leaderboard — MEXO Quiz');
+  const [searchParams] = useSearchParams();
+  const quizId = searchParams.get('quizId');
+
   const { profile, user } = useAuth();
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+
+  useDocumentTitle(
+    quizId && quiz ? `Leaderboard: ${quiz.settings.title} — MEXO Quiz` : 'Global Leaderboard — MEXO Quiz'
+  );
 
   const [tab, setTab] = useState<'daily' | 'weekly' | 'monthly' | 'global'>('weekly');
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
 
   useEffect(() => {
     (async () => {
+      // 1. If filtering for a specific Quiz Leaderboard
+      if (quizId) {
+        const targetQuiz = quizService.getQuizById(quizId);
+        if (targetQuiz) setQuiz(targetQuiz);
+        else {
+          const fetched = await quizService.fetchQuizById(quizId);
+          if (fetched) setQuiz(fetched);
+        }
+
+        // Fetch quiz attempts strictly for this quiz
+        let attempts = attemptService.getQuizAttempts(quizId);
+
+        try {
+          const { data, error } = await supabase
+            .from('quiz_attempts')
+            .select('*')
+            .eq('quiz_id', quizId)
+            .order('percentage', { ascending: false });
+
+          if (data && data.length > 0 && !error) {
+            attempts = data as any;
+          }
+        } catch (e) {}
+
+        if (attempts.length > 0) {
+          const badges = ['👑', '🥇', '🥈', '🥉', '⭐'];
+          const mapped: LeaderboardUser[] = attempts
+            .sort((a, b) => b.percentage - a.percentage || a.time_spent_seconds - b.time_spent_seconds)
+            .map((att, idx) => ({
+              rank: idx + 1,
+              name: att.user_name,
+              avatar: att.user_avatar,
+              xp: att.score,
+              percentage: att.percentage,
+              timeSpentSeconds: att.time_spent_seconds,
+              streak: 1,
+              badge: badges[idx] || '⭐',
+              isUser: att.user_id === (profile?.id || user?.id),
+            }));
+          setLeaderboard(mapped);
+          return;
+        } else {
+          setLeaderboard([]);
+          return;
+        }
+      }
+
+      // 2. Global Leaderboard
       try {
-        // Query profiles ordered by XP from Supabase
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username, first_name, last_name, avatar_url, xp, streak')
@@ -79,7 +138,7 @@ export const LeaderboardPage: React.FC = () => {
         setLeaderboard([]);
       }
     })();
-  }, [profile, user]);
+  }, [quizId, profile, user]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 select-none">

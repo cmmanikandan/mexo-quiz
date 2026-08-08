@@ -158,28 +158,66 @@ export const QuizResultView: React.FC = () => {
           <h3 className="text-sm font-bold text-white">Detailed Answer Review</h3>
           <div className="space-y-4">
             {quiz.questions.map((q, idx) => {
-              const { isCorrect } = attemptService.gradeQuestion(q, attempt.answers[q.id]);
+              const userAnswer = attempt.answers[q.id];
+              const { isCorrect } = attemptService.gradeQuestion(q, userAnswer);
+              const correctOption = q.options?.find(o => o.isCorrect);
+
+              const formatAnswerText = (val: any) => {
+                if (val === undefined || val === null || val === '') return 'Skipped / Unanswered';
+                if (typeof val === 'string') {
+                  const matchOpt = q.options?.find(o => o.id === val || o.text === val);
+                  return matchOpt ? matchOpt.text : val;
+                }
+                if (Array.isArray(val)) {
+                  return val.map(v => {
+                    const matchOpt = q.options?.find(o => o.id === v || o.text === v);
+                    return matchOpt ? matchOpt.text : v;
+                  }).join(', ');
+                }
+                return String(val);
+              };
+
               return (
-                <div key={q.id} className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60 space-y-2">
+                <div key={q.id} className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60 space-y-3">
                   <div className="flex items-start justify-between">
                     <span className="text-xs font-bold text-slate-200">
                       Q{idx + 1}. {q.title}
                     </span>
                     {isCorrect ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 text-[10px] font-bold flex items-center space-x-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 text-[10px] font-extrabold flex items-center space-x-1 shrink-0">
                         <CheckCircle2 className="w-3 h-3" />
-                        <span>Correct</span>
+                        <span>✓ Correct</span>
                       </span>
                     ) : (
-                      <span className="px-2.5 py-0.5 rounded-full bg-rose-950/80 border border-rose-500/50 text-rose-400 text-[10px] font-bold flex items-center space-x-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-rose-950/80 border border-rose-500/50 text-rose-400 text-[10px] font-extrabold flex items-center space-x-1 shrink-0">
                         <XCircle className="w-3 h-3" />
-                        <span>Incorrect</span>
+                        <span>✗ Incorrect</span>
                       </span>
                     )}
                   </div>
+
+                  {/* Student Answer vs Correct Answer Box */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className={`p-2.5 rounded-xl border ${
+                      isCorrect
+                        ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200 font-semibold'
+                        : 'bg-rose-950/40 border-rose-800/60 text-rose-200 font-semibold'
+                    }`}>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Your Response:</p>
+                      <p className="mt-0.5">{formatAnswerText(userAnswer)}</p>
+                    </div>
+
+                    {!isCorrect && correctOption && (
+                      <div className="p-2.5 rounded-xl border bg-emerald-950/40 border-emerald-800/60 text-emerald-200 font-semibold">
+                        <p className="text-[10px] uppercase font-bold text-emerald-400">Correct Answer Key:</p>
+                        <p className="mt-0.5">{correctOption.text}</p>
+                      </div>
+                    )}
+                  </div>
+
                   {q.explanation && (
-                    <p className="text-xs text-slate-400 bg-slate-900 p-2.5 rounded-xl border border-slate-800 font-sans">
-                      💡 <span className="font-bold">Explanation:</span> {q.explanation}
+                    <p className="text-xs text-slate-300 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 font-sans">
+                      💡 <span className="font-bold text-amber-300">Explanation:</span> {q.explanation}
                     </p>
                   )}
                 </div>
