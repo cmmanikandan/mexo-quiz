@@ -47,6 +47,12 @@ export const notificationService = {
     return list;
   },
 
+  clearAll(): void {
+    try {
+      localStorage.removeItem(NOTIFICATIONS_KEY);
+    } catch (e) {}
+  },
+
   addNotification(n: Omit<NotificationItem, 'id' | 'read' | 'created_at'>): NotificationItem {
     const list = this.getNotifications();
     const item: NotificationItem = {
