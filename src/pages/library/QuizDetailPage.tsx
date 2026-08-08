@@ -31,6 +31,10 @@ import {
   QrCode,
   Globe,
   Lock,
+  BarChart3,
+  Trophy,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 
 export const QuizDetailPage: React.FC = () => {
@@ -48,7 +52,9 @@ export const QuizDetailPage: React.FC = () => {
   const [showAnswersInPreview, setShowAnswersInPreview] = useState(false);
 
   const currentUserId = profile?.id || user?.id || 'guest';
-  const currentUserName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username : user?.email || 'MEXO User';
+  const currentUserName = profile
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username
+    : user?.email || 'MEXO User';
   const isOwner = quiz?.creator_id === currentUserId || quiz?.creator_name === currentUserName;
 
   if (!quiz) {
@@ -62,8 +68,9 @@ export const QuizDetailPage: React.FC = () => {
     );
   }
 
-  // Derive 6-digit Join Code (or generate reproducible code from ID)
-  const joinCode = quiz.settings.joinCode || quiz.id.replace(/[^0-9]/g, '').slice(0, 6).padEnd(6, '9');
+  // Status badge derived from real status
+  const status = quiz.settings?.status || 'published';
+  const joinCode = quiz.settings?.joinCode || quiz.id.replace(/[^0-9]/g, '').slice(0, 6).padEnd(6, '9');
   const shareUrl = `${window.location.origin}/quiz/${quiz.id}`;
 
   const handleCopyCode = () => {
@@ -121,16 +128,33 @@ export const QuizDetailPage: React.FC = () => {
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-mexo-lg space-y-6 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
           <div className="space-y-4 flex-1">
+            {/* Badges Bar: Resource Type, Subject, Status */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-purple-100 text-[#7C3AED] text-xs font-black uppercase tracking-wider">
                 {quiz.resource_type || 'Quiz'}
               </span>
+
+              {/* Status Badge (Published vs Draft vs Scheduled) */}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
+                  status === 'published'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : status === 'draft'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-purple-100 text-purple-800'
+                }`}
+              >
+                ● {status}
+              </span>
+
               <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider">
-                {quiz.settings.subject}
+                {quiz.settings?.subject || 'General'}
               </span>
+
               <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
-                {quiz.settings.grade || 'K-12'}
+                {quiz.settings?.grade || 'K-12'}
               </span>
+
               {quiz.is_public ? (
                 <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-extrabold flex items-center space-x-1">
                   <Globe className="w-3 h-3" />
@@ -145,11 +169,11 @@ export const QuizDetailPage: React.FC = () => {
             </div>
 
             <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              {quiz.settings.title}
+              {quiz.settings?.title}
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl">
-              {quiz.settings.description || 'No description provided for this learning activity.'}
+              {quiz.settings?.description || 'No description provided for this learning activity.'}
             </p>
 
             {/* Creator Info & Quick Metadata */}
@@ -161,23 +185,23 @@ export const QuizDetailPage: React.FC = () => {
               <span>·</span>
               <div className="flex items-center space-x-1">
                 <HelpCircle className="w-4 h-4 text-[#7C3AED]" />
-                <span>{quiz.questions.length} Questions</span>
+                <span>{quiz.questions?.length || 0} Questions</span>
               </div>
               <span>·</span>
               <div className="flex items-center space-x-1">
                 <Clock className="w-4 h-4 text-amber-500" />
-                <span>{quiz.settings.quizDurationMinutes || 10} Minutes</span>
+                <span>{quiz.settings?.quizDurationMinutes || 10} Minutes</span>
               </div>
               <span>·</span>
               <div className="flex items-center space-x-1 text-amber-500">
                 <Star className="w-4 h-4 fill-amber-400" />
-                <span>{quiz.rating_avg} rating</span>
+                <span>{quiz.rating_avg || 5.0} rating</span>
               </div>
             </div>
           </div>
 
           {/* Cover Media Image */}
-          {quiz.settings.coverImageUrl && (
+          {quiz.settings?.coverImageUrl && (
             <div className="w-full lg:w-64 h-44 rounded-2xl overflow-hidden border border-slate-200 shadow-md shrink-0">
               <img src={quiz.settings.coverImageUrl} alt={quiz.settings.title} className="w-full h-full object-cover" />
             </div>
@@ -216,7 +240,55 @@ export const QuizDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Share, Join Code & Embed Cards */}
+      {/* QUICK ACCESS ANALYTICS & REPORTS NAVIGATION BAR */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <button
+          onClick={() => navigate(`/reports/${quiz.id}`)}
+          className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-purple-300 hover:shadow-lg transition-all text-left flex items-center space-x-4 cursor-pointer group"
+        >
+          <div className="p-3 rounded-2xl bg-purple-50 text-[#7C3AED] group-hover:bg-[#7C3AED] group-hover:text-white transition-colors">
+            <BarChart3 className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-slate-900 group-hover:text-[#7C3AED] transition-colors">
+              See Responses & Reports
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">View student submissions, accuracy % & export CSV</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/leaderboard?quizId=${quiz.id}`)}
+          className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-amber-300 hover:shadow-lg transition-all text-left flex items-center space-x-4 cursor-pointer group"
+        >
+          <div className="p-3 rounded-2xl bg-amber-50 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+            <Trophy className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-slate-900 group-hover:text-amber-600 transition-colors">
+              Quiz Leaderboard
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">Top student rankings & competitive scores</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate(`/reports/${quiz.id}`)}
+          className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-rose-300 hover:shadow-lg transition-all text-left flex items-center space-x-4 cursor-pointer group"
+        >
+          <div className="p-3 rounded-2xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-slate-900 group-hover:text-rose-600 transition-colors">
+              Anti-Cheating Activity Log
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">Tab switch alerts & exam security integrity</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Share, Join Code & Rules Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Join Code Box */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
@@ -234,7 +306,7 @@ export const QuizDetailPage: React.FC = () => {
               <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">Students can join at join page using this unique 6-digit code.</p>
+          <p className="text-[11px] text-slate-500">Students can join using this 6-digit code.</p>
         </div>
 
         {/* Share Link Box */}
@@ -250,7 +322,7 @@ export const QuizDetailPage: React.FC = () => {
               <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">Share this direct link with students or post on Google Classroom.</p>
+          <p className="text-[11px] text-slate-500">Share this direct link with students.</p>
         </div>
 
         {/* Resource Rules Summary */}
@@ -259,16 +331,16 @@ export const QuizDetailPage: React.FC = () => {
           <div className="space-y-1.5 text-xs text-slate-700 font-semibold">
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Passing Score:</span>
-              <span className="font-bold">{quiz.settings.passingScorePercentage || 60}%</span>
+              <span className="font-bold">{quiz.settings?.passingScorePercentage || 60}%</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Shuffle Questions:</span>
-              <span className="font-bold">{quiz.settings.shuffleQuestions ? 'Enabled' : 'Disabled'}</span>
+              <span className="font-bold">{quiz.settings?.shuffleQuestions ? 'Enabled' : 'Disabled'}</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-500">Anti-Cheating Safeguard:</span>
               <span className="font-bold text-purple-700">
-                {quiz.settings.enableTabSwitchDetection ? 'Active (Tab Switch Detection)' : 'Standard'}
+                {quiz.settings?.enableTabSwitchDetection ? 'Active (Tab Switch Detection)' : 'Standard'}
               </span>
             </div>
           </div>
@@ -297,7 +369,7 @@ export const QuizDetailPage: React.FC = () => {
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center space-x-2">
             <Layers className="w-5 h-5 text-[#7C3AED]" />
-            <h2 className="text-lg font-black text-slate-900">Question List Preview ({quiz.questions.length})</h2>
+            <h2 className="text-lg font-black text-slate-900">Question List Preview ({quiz.questions?.length || 0})</h2>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -321,7 +393,7 @@ export const QuizDetailPage: React.FC = () => {
 
         {showQuestionPreview && (
           <div className="space-y-4">
-            {quiz.questions.map((q, idx) => (
+            {quiz.questions?.map((q, idx) => (
               <div key={q.id} className="p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
