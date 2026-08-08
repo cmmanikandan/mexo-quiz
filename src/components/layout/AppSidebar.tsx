@@ -5,13 +5,12 @@ import {
   Compass,
   BookOpen,
   PlusCircle,
-  Users,
   FileText,
   Radio,
   BarChart3,
   Trophy,
   TrendingUp,
-  Calendar,
+  Bell,
   MessageSquare,
   Settings,
   User,
@@ -19,7 +18,6 @@ import {
   ExternalLink,
   X,
   Plus,
-  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MexoAvatar } from '../common/MexoAvatar';
@@ -40,10 +38,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
     { label: 'Discover', path: '/discover', icon: Compass },
     { label: 'My Library', path: '/library', icon: BookOpen },
     { label: 'Create', path: 'create', icon: PlusCircle, isCreate: true },
+    { label: 'Assignments', path: '/assignments', icon: FileText },
     { label: 'Live Sessions', path: '/sessions', icon: Radio },
-    { label: 'Learning Progress', path: '/progress', icon: TrendingUp },
-    { label: 'Calendar', path: '/calendar', icon: Calendar },
+    { label: 'Progress', path: '/progress', icon: TrendingUp },
+    { label: 'Leaderboard', path: '/leaderboard', icon: Trophy },
+    { label: 'Analytics', path: '/reports', icon: BarChart3 },
+  ];
+
+  const secondaryNavItems = [
+    { label: 'Notifications', path: '/notifications', icon: Bell },
     { label: 'Messages', path: '/messages', icon: MessageSquare },
+    { label: 'Settings', path: '/settings', icon: Settings },
   ];
 
   const displayName = profile
@@ -52,7 +57,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
 
   const mexoId = profile?.username || user?.email?.split('@')[0] || '927624bit060';
 
-  const handleNav = (item: typeof mainNavItems[0]) => {
+  const handleNav = (item: { path: string; isCreate?: boolean }) => {
     if (item.isCreate) {
       onOpenCreate();
     } else {
@@ -76,7 +81,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="space-y-4 overflow-y-auto pr-1">
+        <div className="space-y-3 overflow-y-auto pr-1">
           {/* Mobile Top Sidebar Header */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 lg:hidden pt-2 px-1">
             <div className="flex items-center space-x-2">
@@ -99,13 +104,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
               onOpenCreate();
               if (window.innerWidth < 1024) onClose();
             }}
-            className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md shadow-purple-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer group"
+            className="w-full p-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-md shadow-purple-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer group"
           >
             <Plus className="w-4 h-4 text-yellow-300 stroke-[3] group-hover:scale-110 transition-transform" />
             <span>+ Create Resource</span>
           </button>
 
-          {/* Navigation links */}
+          {/* Main Navigation links */}
           <nav className="space-y-0.5">
             {mainNavItems.map(item => {
               const Icon = item.icon;
@@ -114,7 +119,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
                 <button
                   key={item.label}
                   onClick={() => handleNav(item)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
                       ? 'bg-purple-50 text-[#7C3AED] font-extrabold border border-purple-100 shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
@@ -127,14 +132,36 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
             })}
           </nav>
 
+          {/* Secondary Divider & Links */}
+          <div className="pt-2 border-t border-slate-100 space-y-0.5">
+            {secondaryNavItems.map(item => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => handleNav(item)}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-purple-50 text-[#7C3AED] font-extrabold border border-purple-100 shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#7C3AED]' : 'text-slate-400'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* MEXO Ecosystem Apps Section */}
-          <div className="pt-3 border-t border-slate-100 space-y-1">
+          <div className="pt-2 border-t border-slate-100 space-y-1">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3">MEXO Apps</p>
             <a
               href="https://mexo-mail.vercel.app"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-[#7C3AED] transition-colors"
+              className="flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-[#7C3AED] transition-colors"
             >
               <span>MEXO Mail</span>
               <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -143,7 +170,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
               href="https://mexo-forms.vercel.app"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-[#7C3AED] transition-colors"
+              className="flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-[#7C3AED] transition-colors"
             >
               <span>MEXO Forms</span>
               <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -151,49 +178,25 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
           </div>
         </div>
 
-        {/* Bottom Section: Account, Settings & User Profile Card */}
-        <div className="pt-3 border-t border-slate-100 space-y-2">
-          <div className="space-y-0.5">
+        {/* Bottom Section: User Profile Card */}
+        <div className="pt-2 border-t border-slate-100 space-y-2">
+          {isAdmin && (
             <button
               onClick={() => {
-                navigate('/account');
+                navigate('/admin');
                 if (window.innerWidth < 1024) onClose();
               }}
-              className="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="w-full flex items-center space-x-3 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 transition-colors cursor-pointer"
             >
-              <User className="w-4 h-4 text-[#7C3AED]" />
-              <span>MEXO Account</span>
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span>Admin Console</span>
             </button>
-
-            <button
-              onClick={() => {
-                navigate('/settings');
-                if (window.innerWidth < 1024) onClose();
-              }}
-              className="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <Settings className="w-4 h-4 text-slate-400" />
-              <span>Settings</span>
-            </button>
-
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  navigate('/admin');
-                  if (window.innerWidth < 1024) onClose();
-                }}
-                className="w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 transition-colors cursor-pointer"
-              >
-                <Shield className="w-4 h-4 text-emerald-600" />
-                <span>Admin Console</span>
-              </button>
-            )}
-          </div>
+          )}
 
           {/* User Profile Card at Bottom */}
           <div
             onClick={() => {
-              navigate('/account');
+              navigate('/profile');
               if (window.innerWidth < 1024) onClose();
             }}
             className="p-2.5 rounded-2xl bg-slate-50 hover:bg-purple-50/60 border border-slate-200/80 transition-all cursor-pointer flex items-center space-x-3"

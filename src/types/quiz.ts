@@ -230,10 +230,15 @@ export interface HomeworkAssignment {
   id: string;
   quiz_id: string;
   quiz_title: string;
-  class_id: string;
-  class_name: string;
+  title?: string;
+  instructions?: string;
+  class_id?: string;
+  class_name?: string;
   teacher_id: string;
+  student_id?: string;
   due_date: string;
+  start_at?: string;
+  due_at?: string;
   attempts_allowed: number;
   allow_late_submission: boolean;
   auto_remind: boolean;
