@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MEXO Quiz</title>
+    <title>MEXO Quiz — Unified Learning & Assessment Engine</title>
     <meta name="description" content="MEXO Quiz is the premium learning, live competition, homework, and assessment platform powered by MEXO Account." />
     
     <!-- OpenGraph & Social Media Meta Tags -->
@@ -28,13 +28,114 @@
     
     <!-- PWA Manifest & Meta -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#7C3AED" />
+    <meta name="theme-color" content="#0B0F19" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MEXO Quiz" />
+
+    <style>
+      /* Fallback Inline Splash Styles */
+      #initial-splash {
+        position: fixed;
+        inset: 0;
+        background-color: #0B0F19;
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem;
+        z-index: 99999;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        user-select: none;
+      }
+      .splash-glow {
+        position: absolute;
+        top: 35%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20rem;
+        height: 20rem;
+        background-color: rgba(124, 58, 237, 0.18);
+        border-radius: 9999px;
+        filter: blur(60px);
+        pointer-events: none;
+      }
+      .splash-logo-box {
+        position: relative;
+        width: 5.5rem;
+        height: 5.5rem;
+        background-color: #13192B;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+      .splash-logo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .splash-progress-bg {
+        width: 13rem;
+        height: 0.35rem;
+        background-color: rgba(30, 41, 59, 0.9);
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-top: 1rem;
+      }
+      .splash-progress-bar {
+        height: 100%;
+        width: 45%;
+        background: linear-gradient(90deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%);
+        border-radius: 9999px;
+        animation: splashProgress 1.5s infinite ease-in-out;
+      }
+      @keyframes splashProgress {
+        0% { width: 10%; margin-left: 0; }
+        50% { width: 60%; margin-left: 20%; }
+        100% { width: 10%; margin-left: 90%; }
+      }
+    </style>
   </head>
   <body class="bg-app-bg text-app-body font-sans antialiased selection:bg-purple-500 selection:text-white min-h-screen overflow-x-hidden">
-    <div id="root"></div>
+    <div id="root">
+      <!-- MEXO Ecosystem Initial Splash Screen -->
+      <div id="initial-splash">
+        <div class="splash-glow"></div>
+
+        <div style="padding-top: 2rem; display: flex; align-items: center; gap: 0.5rem; opacity: 0.8;">
+          <div style="width: 0.5rem; height: 0.5rem; background-color: #34d399; border-radius: 9999px;"></div>
+          <span style="font-size: 0.75rem; font-family: monospace; font-weight: 700; color: #94a3b8; letter-spacing: 0.15em;">MEXO ECOSYSTEM</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; margin: auto 0; z-index: 10;">
+          <div class="splash-logo-box">
+            <img src="/logo.png" alt="MEXO Quiz" />
+          </div>
+          <div>
+            <h1 style="font-size: 1.75rem; font-weight: 900; color: #ffffff; margin: 0; tracking-tight: -0.025em;">
+              MEXO <span style="background: linear-gradient(90deg, #c084fc, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Quiz</span>
+            </h1>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-weight: 500;">Unified Learning & Assessment Engine</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; align-items: center; margin-top: 0.5rem;">
+            <span style="font-size: 0.75rem; color: #c084fc; font-weight: 700;">Loading MEXO Account...</span>
+            <div class="splash-progress-bg">
+              <div class="splash-progress-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding-bottom: 1.5rem; text-align: center; font-size: 0.65rem; font-weight: 800; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase;">
+          Creator · Learner · Host · Participant
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
