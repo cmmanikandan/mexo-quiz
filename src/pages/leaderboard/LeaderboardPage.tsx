@@ -142,34 +142,48 @@ export const LeaderboardPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 select-none">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Leaderboard Champions</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Top scholars ranked by XP points, accuracy, and study streaks.</p>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-100 text-[#7C3AED] text-xs font-black uppercase tracking-wider mb-2">
+            <Trophy className="w-4 h-4" />
+            <span>{quizId ? 'Quiz Specific Leaderboard' : 'Global Leaderboard'}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            {quizId && quiz ? quiz.settings.title : 'Leaderboard Champions'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {quizId
+              ? 'Student rankings strictly for this quiz based on score percentage and completion time.'
+              : 'Top scholars ranked by XP points, accuracy, and study streaks.'}
+          </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-2 bg-white p-1.5 rounded-2xl border border-slate-200 w-fit text-xs font-bold shadow-xs">
-        {['daily', 'weekly', 'monthly', 'global'].map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t as any)}
-            className={`px-4 py-2 rounded-xl capitalize transition-all cursor-pointer ${
-              tab === t ? 'bg-[#7C3AED] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      {/* Tabs — Only shown for Global Leaderboard */}
+      {!quizId && (
+        <div className="flex space-x-2 bg-white p-1.5 rounded-2xl border border-slate-200 w-fit text-xs font-bold shadow-xs">
+          {['daily', 'weekly', 'monthly', 'global'].map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t as any)}
+              className={`px-4 py-2 rounded-xl capitalize transition-all cursor-pointer ${
+                tab === t ? 'bg-[#7C3AED] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
 
       {leaderboard.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-3 shadow-xs">
           <Trophy className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-800">No leaderboard rankings available yet</h3>
+          <h3 className="text-base font-bold text-slate-800">No leaderboard rankings recorded yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Complete quizzes and learning activities to earn XP points and claim your spot on the leaderboard.
+            {quizId
+              ? 'Be the first student to take this quiz and claim the #1 spot on the leaderboard!'
+              : 'Complete quizzes and learning activities to earn XP points and claim your spot on the leaderboard.'}
           </p>
         </div>
       ) : (
@@ -188,8 +202,16 @@ export const LeaderboardPage: React.FC = () => {
                   <MexoAvatar name={userItem.name} src={userItem.avatar} size="lg" className="w-12 h-12 mx-auto border-2 border-white shadow-md" />
                   <div>
                     <p className="text-xs font-extrabold text-slate-900 truncate">{userItem.name}</p>
-                    <p className="text-xs font-bold text-[#7C3AED] font-mono mt-0.5">{userItem.xp} XP</p>
-                    <p className="text-[10px] text-amber-600 font-semibold mt-0.5">🔥 {userItem.streak}d Streak</p>
+                    {userItem.percentage !== undefined ? (
+                      <p className="text-xs font-bold text-[#7C3AED] font-mono mt-0.5">{userItem.percentage}% Accuracy</p>
+                    ) : (
+                      <p className="text-xs font-bold text-[#7C3AED] font-mono mt-0.5">{userItem.xp} XP</p>
+                    )}
+                    {userItem.timeSpentSeconds !== undefined ? (
+                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">⏱️ {Math.round(userItem.timeSpentSeconds / 60)}m {userItem.timeSpentSeconds % 60}s</p>
+                    ) : (
+                      <p className="text-[10px] text-amber-600 font-semibold mt-0.5">🔥 {userItem.streak}d Streak</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -206,15 +228,19 @@ export const LeaderboardPage: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center space-x-4">
-                  <span className="w-6 text-center font-mono font-bold text-xs text-slate-400">#{userItem.rank}</span>
+                  <span className="w-6 text-center font-mono font-black text-xs text-slate-500">#{userItem.rank}</span>
                   <MexoAvatar name={userItem.name} src={userItem.avatar} size="sm" className="w-8 h-8 text-xs" />
                   <div>
                     <p className="text-xs font-bold text-slate-900">{userItem.name}</p>
-                    <p className="text-[10px] text-slate-500">🔥 {userItem.streak} days streak</p>
+                    {userItem.timeSpentSeconds !== undefined ? (
+                      <p className="text-[10px] text-slate-400 font-mono">Time: {Math.round(userItem.timeSpentSeconds / 60)}m {userItem.timeSpentSeconds % 60}s</p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500">🔥 {userItem.streak} days streak</p>
+                    )}
                   </div>
                 </div>
-                <div className="text-right font-mono font-bold text-xs text-[#7C3AED]">
-                  {userItem.xp} XP
+                <div className="text-right font-mono font-extrabold text-xs text-[#7C3AED]">
+                  {userItem.percentage !== undefined ? `${userItem.percentage}% (${userItem.xp} pts)` : `${userItem.xp} XP`}
                 </div>
               </div>
             ))}
