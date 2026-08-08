@@ -40,7 +40,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, onClose, onOpenC
     { label: 'Discover', path: '/discover', icon: Compass },
     { label: 'My Library', path: '/library', icon: BookOpen },
     { label: 'Create', path: 'create', icon: PlusCircle, isCreate: true },
-    { label: 'Assignments', path: '/assignments', icon: FileText },
     { label: 'Live Sessions', path: '/sessions', icon: Radio },
     { label: 'Learning Progress', path: '/progress', icon: TrendingUp },
     { label: 'Calendar', path: '/calendar', icon: Calendar },

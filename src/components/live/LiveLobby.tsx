@@ -47,6 +47,7 @@ export const LiveLobby: React.FC = () => {
   // Fetch session & subscribe to Supabase Realtime participants
   useEffect(() => {
     let mounted = true;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
 
     const initRoom = async () => {
       const sess = await liveSessionService.getSessionByCode(roomCode);
@@ -54,29 +55,30 @@ export const LiveLobby: React.FC = () => {
         setSession(sess);
 
         // Auto-join participant using authentic MEXO account data (NO name prompt!)
-        const p = await liveSessionService.joinSession(
+        await liveSessionService.joinSession(
           sess.code,
           displayName,
           userAvatar,
           profile?.id || user?.id
         );
 
-        if (p && mounted) {
-          setJoined(true);
-        }
+        if (mounted) setJoined(true);
 
-        // Fetch existing participants from Supabase
-        try {
-          const { data } = await supabase
-            .from('live_participants')
-            .select('*')
-            .eq('session_id', sess.id);
-          if (data && mounted) {
-            setParticipants(data as LiveParticipant[]);
-          }
-        } catch (e) {}
+        const fetchParticipants = async () => {
+          try {
+            const { data } = await supabase
+              .from('live_participants')
+              .select('*')
+              .eq('session_id', sess.id)
+              .order('joined_at', { ascending: false });
+            if (data && mounted) setParticipants(data as LiveParticipant[]);
+          } catch (e) {}
+        };
 
-        // Subscribe to Realtime inserts/updates
+        // Initial fetch
+        await fetchParticipants();
+
+        // Subscribe to Realtime
         const channel = supabase
           .channel(`live-lobby-${sess.id}`)
           .on(
@@ -95,8 +97,12 @@ export const LiveLobby: React.FC = () => {
           )
           .subscribe();
 
+        // Polling fallback every 4 seconds
+        pollInterval = setInterval(fetchParticipants, 4000);
+
         return () => {
           supabase.removeChannel(channel);
+          if (pollInterval) clearInterval(pollInterval);
         };
       }
     };
@@ -105,6 +111,7 @@ export const LiveLobby: React.FC = () => {
 
     return () => {
       mounted = false;
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [roomCode, displayName, userAvatar, profile, user]);
 
@@ -179,7 +186,11 @@ export const LiveLobby: React.FC = () => {
             </div>
 
             <div className="p-3 bg-white rounded-3xl shadow-xl inline-block">
-              <QRCodeSVG value={qrUrl} size={150} />
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`}
+                alt="QR Code to join"
+                className="w-36 h-36 object-contain rounded-2xl"
+              />
             </div>
 
             <button

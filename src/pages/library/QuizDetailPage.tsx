@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizService } from '../../services/quizService';
 import { attemptService } from '../../services/attemptService';
-import { Quiz, QuizAttempt, SecurityEvent } from '../../types/quiz';
+import { classService } from '../../services/classService';
+import { liveSessionService } from '../../services/liveSessionService';
+import { Quiz, QuizAttempt, SecurityEvent, HomeworkAssignment } from '../../types/quiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { MexoAvatar } from '../../components/common/MexoAvatar';
@@ -56,6 +58,14 @@ export const QuizDetailPage: React.FC = () => {
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'matrix' | 'questions' | 'leaderboard' | 'anticheat'>('overview');
 
+  // Assignment tracking
+  const [assignments, setAssignments] = useState<HomeworkAssignment[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignDueDate, setAssignDueDate] = useState<string>(
+    new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 16)
+  );
+  const [assignClassName, setAssignClassName] = useState('Grade 10');
+
   // Modals state
   const [selectedStudentAttempt, setSelectedStudentAttempt] = useState<QuizAttempt | null>(null);
   const [selectedSecurityAttempt, setSelectedSecurityAttempt] = useState<QuizAttempt | null>(null);
@@ -76,6 +86,10 @@ export const QuizDetailPage: React.FC = () => {
 
       const list = attemptService.getQuizAttempts(id);
       setAttempts(list);
+
+      // Load assignments for this quiz
+      const allAsgn = classService.getAssignments();
+      setAssignments(allAsgn.filter(a => a.quiz_id === id));
     }
   }, [id]);
 
@@ -166,6 +180,29 @@ export const QuizDetailPage: React.FC = () => {
       await quizService.deleteQuiz(quiz.id);
       navigate('/library');
     }
+  };
+
+  const handleAssignQuiz = () => {
+    if (!quiz) return;
+    const newAsgn = classService.addAssignment({
+      quiz_id: quiz.id,
+      quiz_title: quiz.settings.title,
+      class_id: `class-${Date.now()}`,
+      class_name: assignClassName,
+      teacher_id: currentUserId,
+      due_date: new Date(assignDueDate).toISOString(),
+      attempts_allowed: 1,
+      allow_late_submission: false,
+      auto_remind: true,
+    });
+    setAssignments(prev => [...prev, newAsgn]);
+    setShowAssignModal(false);
+  };
+
+  const handleHostLive = async () => {
+    if (!quiz) return;
+    const session = await liveSessionService.createSession(quiz, currentUserId, currentUserName, 'classic');
+    navigate(`/host/${session.id}`);
   };
 
   return (
@@ -298,39 +335,97 @@ export const QuizDetailPage: React.FC = () => {
         </div>
 
         {/* Primary Action Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
-          <button
-            onClick={() => navigate('/assignments')}
-            className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs border border-blue-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
-          >
-            <FileText className="w-4 h-4 text-blue-600" />
-            <span>Assign Quiz</span>
-          </button>
+        {/* If quiz is assigned — show assignment schedule card instead of Assign button */}
+        {assignments.length > 0 ? (
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            {assignments.map((asgn, idx) => (
+              <div key={asgn.id || idx} className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold text-blue-900">{asgn.class_name} — Quiz Assigned</p>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-700">
+                        <Clock className="w-3 h-3" />
+                        <span>Start: {new Date(asgn.assigned_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      </span>
+                      <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-rose-700">
+                        <Clock className="w-3 h-3" />
+                        <span>End / Due: {new Date(asgn.due_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleEndQuiz}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold flex items-center space-x-2 cursor-pointer transition-all shadow-sm whitespace-nowrap"
+                >
+                  <Power className="w-3.5 h-3.5" />
+                  <span>End Quiz</span>
+                </button>
+              </div>
+            ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <button
+                onClick={handleHostLive}
+                className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs border border-purple-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+              >
+                <Radio className="w-4 h-4 text-[#7C3AED]" />
+                <span>Host Live Room</span>
+              </button>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-xs"
+              >
+                <QrCode className="w-4 h-4 text-white" />
+                <span>Share & QR Code</span>
+              </button>
+              <button
+                onClick={() => setShowAssignModal(true)}
+                className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs border border-blue-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+              >
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span>Assign Again</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs border border-blue-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+            >
+              <FileText className="w-4 h-4 text-blue-600" />
+              <span>Assign Quiz</span>
+            </button>
 
-          <button
-            onClick={() => navigate(`/host/${joinCode}`)}
-            className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs border border-purple-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
-          >
-            <Radio className="w-4 h-4 text-[#7C3AED]" />
-            <span>Host Live Room</span>
-          </button>
+            <button
+              onClick={handleHostLive}
+              className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7C3AED] font-extrabold text-xs border border-purple-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+            >
+              <Radio className="w-4 h-4 text-[#7C3AED]" />
+              <span>Host Live Room</span>
+            </button>
 
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-xs"
-          >
-            <QrCode className="w-4 h-4 text-white" />
-            <span>Share & QR Code</span>
-          </button>
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-xs"
+            >
+              <QrCode className="w-4 h-4 text-white" />
+              <span>Share & QR Code</span>
+            </button>
 
-          <button
-            onClick={handleEndQuiz}
-            className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs border border-amber-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
-          >
-            <Power className="w-4 h-4 text-amber-600" />
-            <span>End Quiz Session</span>
-          </button>
-        </div>
+            <button
+              onClick={handleEndQuiz}
+              className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs border border-amber-200 flex items-center justify-center space-x-2 cursor-pointer transition-all shadow-2xs"
+            >
+              <Power className="w-4 h-4 text-amber-600" />
+              <span>End Quiz</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* QUIZ DETAILS TABS */}
@@ -1045,6 +1140,57 @@ export const QuizDetailPage: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </MexoModal>
+      )}
+
+      {/* ASSIGN QUIZ MODAL */}
+      {showAssignModal && (
+        <MexoModal
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          title="Assign Quiz to Class"
+          maxWidth="sm"
+        >
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1">Class / Group Name</label>
+              <input
+                type="text"
+                value={assignClassName}
+                onChange={e => setAssignClassName(e.target.value)}
+                placeholder="e.g. Grade 10 Science"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-[#7C3AED] outline-hidden bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 mb-1">Due Date & Time</label>
+              <input
+                type="datetime-local"
+                value={assignDueDate}
+                onChange={e => setAssignDueDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:border-[#7C3AED] outline-hidden bg-white"
+              />
+            </div>
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700 font-semibold">
+              <p>Start: <span className="font-extrabold">{new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
+              <p>End: <span className="font-extrabold">{new Date(assignDueDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
+            </div>
+            <div className="flex space-x-2 pt-1">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-extrabold hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignQuiz}
+                disabled={!assignClassName.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50"
+              >
+                Assign Quiz
+              </button>
             </div>
           </div>
         </MexoModal>
