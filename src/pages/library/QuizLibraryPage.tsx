@@ -150,7 +150,7 @@ export const QuizLibraryPage: React.FC = () => {
             <p className="text-xs text-slate-500 max-w-sm mx-auto">Create a new activity or explore public resources in Discover to add items.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredQuizzes.map(q => (
               <div
                 key={q.id}
@@ -158,44 +158,68 @@ export const QuizLibraryPage: React.FC = () => {
                 className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
               >
                 <div>
-                  <div className="h-40 bg-slate-100 relative overflow-hidden">
+                  {/* Image & Overlay Badges */}
+                  <div className="h-36 sm:h-44 bg-slate-100 relative overflow-hidden">
                     <img
                       src={q.settings.coverImageUrl || 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600'}
                       alt={q.settings.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold uppercase">
+                    <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">
                       {q.resource_type || 'quiz'}
                     </div>
+                    {q.settings.subject && (
+                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-purple-600/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider">
+                        {q.settings.subject}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="p-5 space-y-2">
-                    <div className="flex items-center space-x-1.5 text-amber-500 text-xs font-bold">
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>{q.rating_avg}</span>
-                      <span className="text-slate-400 font-normal">({q.rating_count}) • {q.plays_count} plays</span>
+                  {/* Card Content Body */}
+                  <div className="p-4 sm:p-5 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                      <div className="flex items-center space-x-1 text-amber-500">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{q.rating_avg}</span>
+                        <span className="text-slate-400 font-normal">({q.rating_count})</span>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-400">{q.plays_count} plays</span>
                     </div>
 
-                    <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-[#7C3AED] transition-colors line-clamp-2">
+                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-[#7C3AED] transition-colors line-clamp-2 leading-snug">
                       {q.settings.title}
                     </h3>
 
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                      {q.settings.description}
+                    <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {q.settings.description || 'Interactive learning resource'}
                     </p>
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-[#7C3AED] text-[10px] font-bold">
+                        {q.questions.length} Qs
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-[10px] font-bold">
+                        {q.settings.quizDurationMinutes || 10}m
+                      </span>
+                      {q.settings.grade && (
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                          {q.settings.grade}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Actions Toolbar */}
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs font-bold">
-                  <div className="flex items-center space-x-1">
+                <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between text-xs font-bold gap-2">
+                  <div className="flex items-center space-x-1.5 overflow-x-auto">
                     <button
                       onClick={e => {
                         e.stopPropagation();
                         navigate(`/builder/${q.id}`);
                       }}
                       title="Edit Resource"
-                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-purple-600 cursor-pointer"
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-purple-600 hover:border-purple-200 cursor-pointer shadow-2xs transition-all shrink-0"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
@@ -203,7 +227,7 @@ export const QuizLibraryPage: React.FC = () => {
                     <button
                       onClick={e => handleDuplicate(q.id, e)}
                       title="Duplicate Resource"
-                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-blue-600 hover:border-blue-200 cursor-pointer shadow-2xs transition-all shrink-0"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -214,7 +238,7 @@ export const QuizLibraryPage: React.FC = () => {
                         navigate(`/host/${q.id}`);
                       }}
                       title="Start Live Session"
-                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-rose-600 cursor-pointer"
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-rose-600 hover:border-rose-200 cursor-pointer shadow-2xs transition-all shrink-0"
                     >
                       <Radio className="w-3.5 h-3.5" />
                     </button>
@@ -222,15 +246,15 @@ export const QuizLibraryPage: React.FC = () => {
                     <button
                       onClick={e => handleDelete(q.id, e)}
                       title="Delete Resource"
-                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-rose-600 cursor-pointer"
+                      className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-rose-600 hover:border-rose-200 cursor-pointer shadow-2xs transition-all shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <span className="text-[#7C3AED] flex items-center space-x-1">
+                  <span className="text-[#7C3AED] font-extrabold text-xs flex items-center space-x-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
                     <span>Open</span>
-                    <Play className="w-3.5 h-3.5 fill-[#7C3AED]" />
+                    <Play className="w-3 h-3 fill-[#7C3AED]" />
                   </span>
                 </div>
               </div>
