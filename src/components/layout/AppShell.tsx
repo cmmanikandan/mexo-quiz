@@ -12,7 +12,7 @@ export const AppShell: React.FC<{ children: React.ReactNode; hideSidebar?: boole
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-purple-500 selection:text-white max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-purple-500 selection:text-white max-w-full overflow-x-hidden pt-16">
       <AppHeader
         onHamburger={() => setSidebarOpen(!sidebarOpen)}
         onOpenCreate={() => setCreateModalOpen(true)}
